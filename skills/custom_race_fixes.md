@@ -102,4 +102,57 @@ bool IsAlliance(uint8 race)
 这样可以完美吃透 `SharedDefines.h` 中针对联盟种族掩码的配置扩展。所有自定义联盟种族都能获得合法缓存地点，上线瞬间就会自动飞到对应的等级区域打怪。**注意需要重新编译核心才能生效。**
 
 ---
+## 问题 6：真实玩家在Playerbot旁边时所有机器人拒绝传送 (HasPlayerNearby Break Bug)
+
+**问题表现：**
+即使前面修复了 `IsAlliance()` 的问题，如果真实玩家站在出生点或者机器人附近（如观察它们的行为），**所有机器人仍然拒绝传送**，继续扎堆。
+
+**根本原因：**
+在 `RandomPlayerbotMgr::RandomTeleport()` 函数中，当机器人已经选好了合法传送目的地、准备执行最后一步传送时，会检测附近是否有真实玩家。如果有，程序使用了 `break`（**直接退出整个循环**），而不是 `continue`（**跳过当前目的地、尝试下一个**）。
+
+```cpp
+// 错误代码：
+if (botAI->HasPlayerNearby(150.0f))
+{
+    break;  // 退出循环 = 放弃传送！
+}
+```
+
+这意味着只要你打开游戏站在出生点旁边看机器人，**它们就永远不会传送走**。
+
+**修复方案：**
+将 `break` 改为 `continue`：
+```cpp
+if (botAI->HasPlayerNearby(150.0f))
+{
+    continue;  // 跳过这个目的地，尝试下一个
+}
+```
+
+同时，在 `PrepareAddclassCache()` 中也有一处硬编码 `isAlliance` 判断（`race == 1 || race == 3 || ...`），需要同样改为掩码方式。
+
+---
+## 问题 7：机器人瞬间全部登录导致出生点瞬间扎堆 (Gradual Login Configuration)
+
+**问题表现：**
+服务器启动后，所有 150 个机器人会在几秒内同时登录、同时出现在出生点，造成扎堆和服务器压力。
+
+**根本原因：**
+默认配置 `RandomBotsPerInterval = 60` 代表每个周期最多处理 60 个机器人，而 `RandomBotUpdateInterval = 20` 每 20 秒一个周期。150 个机器人只需 3 个周期（60 秒）就全部涌入。
+
+**修复方案（配置调整，无需编译）：**
+修改 `configs/modules/playerbots.conf`：
+```ini
+# 每10秒只处理5个机器人（登录+更新），实现渐进式登录
+AiPlayerbot.RandomBotUpdateInterval = 10
+AiPlayerbot.RandomBotsPerInterval = 5
+
+# 缩短最小传送间隔，让机器人登录后更快离开出生点
+AiPlayerbot.MinRandomBotTeleportInterval = 300
+AiPlayerbot.MaxRandomBotTeleportInterval = 7200
+```
+
+这样 150 个机器人会在约 5 分钟内缓慢登入（每 10 秒 1-5 个），登录后也能更快被传送到练级区域。
+
+---
 ## End of Documentation

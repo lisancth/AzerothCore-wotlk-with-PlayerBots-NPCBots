@@ -1,6 +1,6 @@
 ---
 name: "wow_custom_race_fixes"
-description: "Fixes for WoW Custom Race shapeshifting visuals, totem rendering, server stability (overloading), and UI Lua bugs in transmog addons"
+description: "Fixes for WoW Custom Race shapeshifting visuals, totem rendering, server stability (overloading), UI Lua bugs, random bot custom race spawning, and server port conflicts"
 ---
 
 # 魔兽世界：自定义种族核心问题修复总结 (Skills)
@@ -153,6 +153,65 @@ AiPlayerbot.MaxRandomBotTeleportInterval = 7200
 ```
 
 这样 150 个机器人会在约 5 分钟内缓慢登入（每 10 秒 1-5 个），登录后也能更快被传送到练级区域。
+
+---
+
+## 问题 8：自定义种族 18（娜迦/赞达拉巨魔）机器人持续自动生成并出现在暗夜精灵新手村 (Random Bot Custom Race Disable)
+
+**问题表现：**
+服务器自动在后台生成大量 Race 18（娜迦/赞达拉巨魔）1级机器人，这些机器人头顶显示的是联盟盾牌，却被派生到了暗夜精灵新手村（帝尔伦）或者其他联盟新手区 strolling，既不符合阵营设定，也破坏了游戏环境。手动删库只能治标，服务器下次重启后还会自动补满。
+
+**根本原因：**
+`RandomPlayerbotFactory.cpp` 中自动生成随机机器人的循环 `for (uint8 race = RACE_HUMAN; race < MAX_RACES; ++race)` 会遍历所有种族 ID（1 到 MAX_RACES = 22），包括自定义的种族 18。服务端没有对隐藏/异常的自定义种族作任何过滤，每次启动都会把空缺的随机机器人名额重新用 Race 18 填满。
+
+**修复方案（需重新编译）：**
+在 `modules/mod-playerbots/src/Bot/Factory/RandomPlayerbotFactory.cpp` 种族遍历循环内添加跳过条件：
+```cpp
+// Skip generating custom race 18 (Naga/Zandalari Troll) for random bots
+if (race == RACE_FOREST_TROLL)
+    continue;
+```
+配合数据库清理（一次性执行）：
+```sql
+-- 清理已生成的所有 Race 18 (随机机器人前缀为 rndbot%)
+DELETE FROM acore_characters.characters WHERE race = 18;
+```
+之后重新编译服务端核心并替换 `worldserver.exe`，服务器将**永久不会**再自动生成种族 18 的随机机器人。
+
+**已推送 Commit：**
+- 子模块 `modules/mod-playerbots`：`newreborn` 分支，commit: `a2f6968e`
+- 主仓库 `AZtwobotSources`：`newreborn` 分支，commit: `0c9122a8c`
+
+---
+
+## 问题 9：服务端无法启动，绑定端口失败 (StartNetwork failed to bind socket acceptor)
+
+**问题表现：**
+服务端完整加载完毕（日志显示 `WORLD: World Initialized`），但最后一刻直接崩溃退出，`Server.log` 最后几行为：
+```
+StartNetwork failed to bind socket acceptor
+Failed to initialize network
+```
+
+**根本原因：**
+WoW 服务端（`worldserver.exe`）启动时需要独占绑定本地 `8085` 端口，才能接收客户端连接。如果此时本机有其他程序（代理软件、VPN、加速器）先占用了 `8085` 端口，服务端就无法绑定，直接报错退出。
+
+诊断命令（排查端口占用）：
+```powershell
+# 查看 8085 端口被哪个进程占用
+netstat -ano | findstr 8085
+
+# 根据 PID 找到程序名（将 xxxxx 替换为实际 PID）
+Get-Process -Id xxxxx | Select-Object Name
+```
+常见占用软件：`verge-mihomo`（Clash Verge）、VPN 客户端、游戏加速器等。
+
+**修复方案：**
+1. **暂时关闭代理/VPN 软件**（右下角托盘右键完全退出）。
+2. **重新启动 `worldserver.exe`**，等待服务端完全载入。
+3. 听到提示音或看到绿字后，**再重新打开代理/加速器**即可。
+
+> 如果需要永久解决，可在代理软件设置中将其本地端口改为其他端口（如 7890、10809 等），避开 WoW 服务端专用的 8085。
 
 ---
 ## End of Documentation

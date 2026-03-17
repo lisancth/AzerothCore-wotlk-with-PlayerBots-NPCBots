@@ -16,6 +16,7 @@
  */
 
 #include "Unit.h"
+#include "AbstractFollower.h"
 #include "AreaDefines.h"
 #include "ArenaSpectator.h"
 #include "Battlefield.h"
@@ -44,7 +45,6 @@
 #include "MoveSpline.h"
 #include "MoveSplineInit.h"
 #include "MovementGenerator.h"
-#include "AbstractFollower.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvP.h"
@@ -2473,7 +2473,7 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
     return uint32(std::ceil(std::max(damage * (1.0f - tmpvalue), 0.0f)));
 }
 
-float Unit::GetEffectiveResistChance(Unit const* owner, SpellSchoolMask schoolMask, Unit const* victim)
+float Unit::GetEffectiveResistChance(Unit const* owner, SpellSchoolMask schoolMask, Unit const* victim, SpellInfo const* spellInfo /*= nullptr*/)
 {
     float victimResistance = static_cast<float>(victim->GetResistance(schoolMask));
     if (owner)
@@ -2501,7 +2501,8 @@ float Unit::GetEffectiveResistChance(Unit const* owner, SpellSchoolMask schoolMa
 #endif
 
     victimResistance = std::max(victimResistance, 0.0f);
-    if (owner)
+
+    if (owner && (!spellInfo || !spellInfo->HasAttribute(SPELL_ATTR0_CU_BINARY_SPELL)))
         victimResistance += std::max(static_cast<float>(victim->GetLevel() - owner->GetLevel()) * 5.0f, 0.0f);
 
     float level = static_cast<float>(victim->GetLevel());
@@ -2815,13 +2816,7 @@ void Unit::CalcAbsorbResist(DamageInfo& dmgInfo, bool Splited)
             if (!caster || (caster == victim) || !caster->IsInWorld() || !caster->IsAlive())
                 continue;
 
-            // Limit effect range to spell's cast range. (Only for single target auras, AreaAuras don't need it)
-            // Ignore LOS attribute is only used for the cast portion of the spell
             SpellInfo const* splitSpellInfo = (*itr)->GetSpellInfo();
-            if (!splitSpellInfo->Effects[(*itr)->GetEffIndex()].IsAreaAuraEffect())
-                if (!caster->IsWithinDist(victim, splitSpellInfo->GetMaxRange(splitSpellInfo->IsPositive(), caster)))
-                    continue;
-
             uint32 splitDamage = CalculatePct(dmgInfo.GetDamage(), (*itr)->GetAmount());
             SpellSchoolMask splitSchoolMask  = schoolMask;
 
@@ -3894,9 +3889,8 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* victim, SpellInfo const* spellInfo
             tmp += victim->GetMaxNegativeAuraModifierByMiscValue(SPELL_AURA_MOD_DEBUFF_RESISTANCE, int32(spellInfo->Dispel)) * 100;
         }
 
-        // Players resistance for binary spells
         if (spellInfo->HasAttribute(SPELL_ATTR0_CU_BINARY_SPELL) && (spellInfo->GetSchoolMask() & (SPELL_SCHOOL_MASK_NORMAL | SPELL_SCHOOL_MASK_HOLY)) == 0)
-            tmp += int32(Unit::GetEffectiveResistChance(this, spellInfo->GetSchoolMask(), victim) * 10000.0f); // 100 for spell calculations, and 100 for return value percentage
+            tmp += int32(Unit::GetEffectiveResistChance(this, spellInfo->GetSchoolMask(), victim, spellInfo) * 10000.0f);
     }
 
     // Roll chance
@@ -5927,12 +5921,8 @@ void Unit::RemoveAreaAurasDueToLeaveWorld()
 
 void Unit::RemoveAllFollowers()
 {
-    while (auto* ref = m_FollowingRefMgr.getFirst())
-    {
-        auto* source = ref->GetSource();
-        ref->delink();
-        source->SetTarget(nullptr);
-    }
+    while (!m_followingMe.empty())
+        (*m_followingMe.begin())->SetTarget(nullptr);
 }
 
 void Unit::RemoveAllAuras()
@@ -8619,6 +8609,14 @@ void Unit::RemoveAllControlled(bool onDeath /*= false*/)
         }
         else if (target->GetOwnerGUID() == GetGUID() && target->IsSummon())
         {
+            // Keep Lightwell alive on owner death
+            if (onDeath)
+                if (TempSummon* ts = target->ToTempSummon())
+                    if (ts->m_Properties && ts->m_Properties->Type == SUMMON_TYPE_LIGHTWELL)
+                    {
+                        continue;
+                    }
+
             if (!(onDeath && !IsPlayer() && target->IsGuardian()))
             {
                 target->ToTempSummon()->UnSummon();
@@ -15253,7 +15251,7 @@ bool Unit::HandleAuraRaidProcFromCharge(AuraEffect* triggeredByAura)
     return true;
 }
 
-void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackType attackType, SpellInfo const* spellProto, Spell const* spell /*= nullptr*/)
+void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackType attackType, SpellInfo const* /*spellProto*/, Spell const* /*spell*/ /*= nullptr*/)
 {
     // Prevent killing unit twice (and giving reward from kill twice)
     if (!victim->GetHealth())
@@ -15385,20 +15383,21 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
     //end npcbot
 #endif
     // Do KILL and KILLED procs. KILL proc is called only for the unit who landed the killing blow (and its owner - for pets and totems) regardless of who tapped the victim
+    // Spell context is not passed to avoid the killing spell's triggered status from suppressing nested proc events
     if (killer && (killer->IsPet() || killer->IsTotem()))
         if (Unit* owner = killer->GetOwner())
         {
-            Unit::ProcSkillsAndAuras(owner, victim, PROC_FLAG_KILL, PROC_FLAG_NONE, PROC_EX_NONE, 0, attackType, spellProto, nullptr, -1, spell);
+            Unit::ProcSkillsAndAuras(owner, victim, PROC_FLAG_KILL, PROC_FLAG_NONE, PROC_EX_NONE, 0, attackType, nullptr, nullptr, -1, nullptr);
             sScriptMgr->OnPlayerCreatureKilledByPet( killer->GetCharmerOrOwnerPlayerOrPlayerItself(), victim->ToCreature());
         }
 
     if (killer != victim)
     {
-        Unit::ProcSkillsAndAuras(killer, victim, killer ? PROC_FLAG_KILL : 0, PROC_FLAG_KILLED, PROC_EX_NONE, 0, attackType, spellProto, nullptr, -1, spell);
+        Unit::ProcSkillsAndAuras(killer, victim, killer ? PROC_FLAG_KILL : 0, PROC_FLAG_KILLED, PROC_EX_NONE, 0, attackType, nullptr, nullptr, -1, nullptr);
     }
 
     // Proc auras on death - must be before aura/combat remove
-    Unit::ProcSkillsAndAuras(victim, nullptr, PROC_FLAG_DEATH, PROC_FLAG_NONE, PROC_EX_NONE, 0, attackType, spellProto, nullptr, -1, spell);
+    Unit::ProcSkillsAndAuras(victim, nullptr, PROC_FLAG_DEATH, PROC_FLAG_NONE, PROC_EX_NONE, 0, attackType, nullptr, nullptr, -1, nullptr);
 
     // update get killing blow achievements, must be done before setDeathState to be able to require auras on target
     // and before Spirit of Redemption as it also removes auras
@@ -16583,7 +16582,11 @@ void Unit::SendPlaySpellImpact(ObjectGuid guid, uint32 id)
     WorldPacket data(SMSG_PLAY_SPELL_IMPACT, 8 + 4);
     data << guid;       // target
     data << uint32(id); // SpellVisualKit.dbc index
-    SendMessageToSet(&data, true);
+
+    if (IsPlayer())
+        ToPlayer()->SendDirectMessage(&data);
+    else
+    	SendMessageToSet(&data, true);
 }
 
 #ifdef MOD_NPCERBOTS

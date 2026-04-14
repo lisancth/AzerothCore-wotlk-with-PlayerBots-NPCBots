@@ -129,3 +129,6 @@ Release/
 
 # Ignore RC compiler build log
 rc_head.log
+.agents/
+skills/
+AZtwobotBuild/

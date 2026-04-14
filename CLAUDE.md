@@ -123,4 +123,11 @@ Type(Scope/Subscope): Short description (max 50 chars)
 
 - AI tool usage must be disclosed in PRs
 - In-game testing expected
-- Changes to generic code require regression testing of related systems
+## AI Assistant Agents (Game Studio Model)
+
+The project incorporates specialized role definitions, rules, and workflows from the `Claude-Code-Game-Studios` framework to enhance AI-assisted development:
+- **Roles** (`.agents/roles/`): Definitions for `engine-programmer`, `gameplay-programmer`, `ai-programmer`, `technical-director`, etc.
+- **Rules** (`.agents/rules/`): Path-specific coding standards, architectural guidelines, and safety checks.
+- **Skills** (`skills/`): Reusable workflow instructions (e.g., `code-review`, `architecture-decision`, `tech-debt`, `perf-profile`).
+
+When performing tasks related to specific subsystems (e.g., AI logic, engine core, SQL updates), the AI assistant should consult the corresponding agent roles and path rules to ensure compliance with modern game development studio standards.

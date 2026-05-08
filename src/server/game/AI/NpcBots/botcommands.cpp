@@ -2132,7 +2132,7 @@ public:
                 handler->PSendSysMessage("{} is dead!", bot->GetName());
                 return true;
             }
-            if (!bot->GetBotAI()->HasRole(BOT_ROLE_DPS) || bot->GetVictim() || bot->IsInCombat() || !bot->getAttackers().empty())
+            if (!bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS) || bot->GetVictim() || bot->IsInCombat() || !bot->getAttackers().empty())
             {
                 handler->PSendSysMessage("{} cannot pull target! Must be idle and have DPS role", bot->GetName());
                 return true;
@@ -2231,17 +2231,17 @@ public:
             return true;
         }
 
-        bot_ai::BotOrder order(BOT_ORDER_PULL);
-        order.params.pullParams.targetGuid = target_guid.GetRawValue();
+        bot_ai::BotAction action(BotActionTypes::BOT_ACTION_PULL);
+        action.params.pull_params.target_guid = target_guid;
 
-        if (bot->GetBotAI()->AddOrder(std::move(order)))
+        if (bot->GetBotAI()->EnqueueAction(std::move(action), true))
         {
-            if (DEBUG_BOT_ORDERS)
+            if (DEBUG_BOT_ACTIONS)
                 handler->PSendSysMessage("Order given: {}: pull {}", bot->GetName(), target ? target->GetName().c_str() : "unknown");
         }
         else
         {
-            if (DEBUG_BOT_ORDERS)
+            if (DEBUG_BOT_ACTIONS)
                 handler->PSendSysMessage("Order failed: {}: pull {}", bot->GetName(), target ? target->GetName().c_str() : "unknown");
         }
 
@@ -2342,7 +2342,7 @@ public:
 
             cBots.erase(std::remove_if(cBots.begin(), cBots.end(),
                 [=](Creature const* tbot) {
-                    if (tbot->GetBotAI()->GetOrdersCount() >= MAX_BOT_ORDERS_QUEUE_SIZE)
+                    if (tbot->GetBotAI()->GetActionsQueueSize() >= MAX_BOT_ACTIONS_QUEUE_SIZE)
                         return true;
                     return !canBotUseSpell(tbot, base_spell);
                 }),
@@ -2438,19 +2438,19 @@ public:
             return true;
         }
 
-        bot_ai::BotOrder order(BOT_ORDER_SPELLCAST);
-        order.params.spellCastParams.baseSpell = base_spell;
-        order.params.spellCastParams.targetGuid = target_guid.GetRawValue();
+        bot_ai::BotAction action(BotActionTypes::BOT_ACTION_SPELLCAST);
+        action.params.spell_cast_params.base_spell = base_spell;
+        action.params.spell_cast_params.target_guid = target_guid;
 
-        if (bot->GetBotAI()->AddOrder(std::move(order)))
+        if (bot->GetBotAI()->EnqueueAction(std::move(action), true))
         {
-            if (DEBUG_BOT_ORDERS)
+            if (DEBUG_BOT_ACTIONS)
                 handler->PSendSysMessage("Order given: {}: {} on {}", bot->GetName(),
                     sSpellMgr->GetSpellInfo(base_spell)->SpellName[handler->GetSessionDbcLocale()], target ? target->GetName().c_str() : "unknown");
         }
         else
         {
-            if (DEBUG_BOT_ORDERS)
+            if (DEBUG_BOT_ACTIONS)
                 handler->PSendSysMessage("Order failed: {}: {} on {}", bot->GetName(),
                     sSpellMgr->GetSpellInfo(base_spell)->SpellName[handler->GetSessionDbcLocale()], target ? target->GetName().c_str() : "unknown");
         }

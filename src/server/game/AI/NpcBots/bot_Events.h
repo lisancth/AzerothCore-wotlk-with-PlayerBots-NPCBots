@@ -1,4 +1,4 @@
-#ifndef BOT_EVENTS_H_
+﻿#ifndef BOT_EVENTS_H_
 #define BOT_EVENTS_H_
 
 #include "EventProcessor.h"

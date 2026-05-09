@@ -65,7 +65,7 @@ class bot_ai : public CreatureAI
         bool canUpdate;
 
         void InitializeAI() override;
-        //void Reset() override { }
+        void Reset() override;
 
         NpcBotData const* GetBotData() const { return _botData; }
         NpcBotExtras const* GetBotExtras() const { return _botExtras; }
@@ -140,7 +140,7 @@ class bot_ai : public CreatureAI
         void CommonTimers(uint32 diff);
         void ResetBotAI(uint8 resetType);
         void KillEvents(bool force);
-        void BotMovement(BotMovementType type, Position const* pos, Unit* target = nullptr, bool generatePath = true, float speed = 0.0f) const;
+        void BotMovement(NpcBotMovementType type, Position const* pos, Unit* target = nullptr, bool generatePath = true, float speed = 0.0f) const;
         bool CanBotMoveVehicle() const;
         void MoveToSendPosition(uint32 point_id);
         void MoveToSendPosition(Position const& mpos);
@@ -288,7 +288,7 @@ class bot_ai : public CreatureAI
 
         MeleeHitOutcome BotRollCustomMeleeOutcomeAgainst(Unit const* victim, WeaponAttackType attType) const;
 
-        float GetTotalBotStat(BotStatMods stat) const { return _getTotalBotStat(stat); }
+        float GetTotalBotStat(NpcBotStatMods stat) const { return _getTotalBotStat(stat); }
 
         Item* GetEquips(uint8 slot) const { return _equips[slot]; }
         Item* GetEquipsByGuid(ObjectGuid itemGuid) const;
@@ -568,9 +568,9 @@ class bot_ai : public CreatureAI
         void DoSiegeEngineVehicleStrats(uint32 diff);
         void DoChopperVehicleStrats(uint32 diff);
         void DoGenericVehicleStrats(uint32 diff);
-        void DoVehicleStrats(BotVehicleStrats strat, uint32 diff);
+        void DoVehicleStrats(NpcBotVehicleStrats strat, uint32 diff);
         void DoVehicleActions(uint32 diff);
-        bool CheckVehicleAttackTarget(BotVehicleStrats /*strat*/);
+        bool CheckVehicleAttackTarget(NpcBotVehicleStrats /*strat*/);
         bool HasVehicleRoleOverride(uint32 role) const;
         float GetVehicleAttackDistanceOverride() const;
         uint8 LivingVehiclesCount(uint32 entry = 0) const;
@@ -596,7 +596,7 @@ class bot_ai : public CreatureAI
         uint8 _spec, _newspec;
         int8 _primaryIconTank, _primaryIconDamage;
 
-        BotVehicleStrats curVehStrat;
+        NpcBotVehicleStrats curVehStrat;
         uint8 vehcomboPoints;
         bool shouldEnterVehicle;
 
@@ -670,7 +670,7 @@ class bot_ai : public CreatureAI
         void _castBotItemUseSpell(Item const* item, SpellCastTargets const& targets/*, uint8 cast_count = 0, uint32 glyphIndex = 0*/);
 
         std::tuple<Unit*, Unit*> _getTargets(bool byspell, bool ranged, bool &reset) const;
-        Unit* _getVehicleTarget(BotVehicleStrats strat) const;
+        Unit* _getVehicleTarget(NpcBotVehicleStrats strat) const;
         void _listAuras(Player const* player, Unit const* unit) const;
         bool _checkImmunities(Unit const* target, SpellInfo const* spellInfo) const;
         static float _getAttackDistance(float distance) { return distance*0.72f; }
@@ -694,8 +694,8 @@ class bot_ai : public CreatureAI
         void _LocalizeGameObject(Player const* forPlayer, std::string &gameobjectName, uint32 entry) const;
         void _LocalizeSpell(Player const* forPlayer, std::string &spellName, uint32 entry) const;
 
-        float _getBotStat(uint8 slot, BotStatMods stat) const;
-        float _getTotalBotStat(BotStatMods stat) const;
+        float _getBotStat(uint8 slot, NpcBotStatMods stat) const;
+        float _getTotalBotStat(NpcBotStatMods stat) const;
         float _getRatingMultiplier(CombatRating cr) const;
 
         float _getStatScore(uint8 stat) const;
@@ -812,7 +812,7 @@ class bot_ai : public CreatureAI
         {
             friend class bot_ai;
 
-            explicit BotAction(BotActionTypes action_type, BotMilliseconds delay = 0ms, BotMilliseconds timeout = 1000ms);
+            explicit BotAction(NpcBotActionTypes action_type, BotMilliseconds delay = 0ms, BotMilliseconds timeout = 1000ms);
             BotAction(BotAction&&) noexcept = default;
             BotAction& operator=(BotAction&&) = default;
 
@@ -824,7 +824,7 @@ class bot_ai : public CreatureAI
             inline bool operator==(BotAction const& other) const noexcept { return _exec_point == other._exec_point; }
             inline bool operator<(BotAction const& other) const noexcept { return _exec_point < other._exec_point; }
 
-            BotActionTypes _type;
+            NpcBotActionTypes _type;
             uint32 _exec_window;
             BotTimePoint _exec_point;
 
@@ -847,9 +847,9 @@ class bot_ai : public CreatureAI
 
         bool HasOrders() const { return HasQueuedActions(); }
         bool HasQueuedActions() const { return !_action_queue.empty(); }
-        bool HasQueuedSpellAction(uint32 base_spell) const { return HasQueuedAction(BotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, base_spell); }
-        bool HasQueuedAction(BotActionTypes action_type, ObjectGuid guid_param, uint32 uparam, std::optional<bool> bparam = std::nullopt) const;
-        bool IsActionNext(BotActionTypes action_type, uint32 param1 = 0, ObjectGuid guidparam1 = ObjectGuid::Empty) const;
+        bool HasQueuedSpellAction(uint32 base_spell) const { return HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, base_spell); }
+        bool HasQueuedAction(NpcBotActionTypes action_type, ObjectGuid guid_param, uint32 uparam, std::optional<bool> bparam = std::nullopt) const;
+        bool IsActionNext(NpcBotActionTypes action_type, uint32 param1 = 0, ObjectGuid guidparam1 = ObjectGuid::Empty) const;
         BotAction const& GetFirstActionInQueue() const { ASSERT(HasQueuedActions()); return *_action_queue.cbegin(); }
         std::size_t GetActionsQueueSize() const { return _action_queue.size(); }
         bool EnqueueAction(BotAction&& action, bool is_order);

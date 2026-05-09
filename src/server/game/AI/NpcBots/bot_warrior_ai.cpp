@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botmgr.h"
 #include "botspell.h"
 #include "bottext.h"
@@ -697,7 +697,7 @@ public:
             //SHIELD BASH - shared cd with pummel
             if (IsSpellReady(SHIELD_BASH_1, diff, false) && can_do_normal && CanBlock() &&
                 (_inStance(4) || stancetimer <= diff) && dist < 5 && rage >= rcost(SHIELD_BASH_1) &&
-                !HasQueuedAction(BotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, SHIELD_BASH_1) &&
+                !HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, SHIELD_BASH_1) &&
                 mytar->IsNonMeleeSpellCast(false, false, true))
             {
                 if ((_inStance(4) || stanceChange(diff, 4)) &&
@@ -707,7 +707,7 @@ public:
             //PUMMEL - shared cd with shield bash
             if (IsSpellReady(PUMMEL_1, diff, false) && can_do_normal && !IsTank() && !CanBlock() &&
                 dist < 5 && (_inStance(3) || stancetimer <= diff) && rage >= rcost(PUMMEL_1) &&
-                !HasQueuedAction(BotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, PUMMEL_1) &&
+                !HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, PUMMEL_1) &&
                 mytar->IsNonMeleeSpellCast(false, false, true))
             {
                 if ((_inStance(3) || stanceChange(diff, 3)) &&

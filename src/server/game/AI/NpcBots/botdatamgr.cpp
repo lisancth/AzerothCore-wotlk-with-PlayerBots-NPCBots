@@ -1,7 +1,7 @@
+﻿#include "botdatamgr.h"
 #include "BattlegroundMgr.h"
 #include "BattlegroundQueue.h"
 #include "bot_ai.h"
-#include "botdatamgr.h"
 #include "botgearscore.h"
 #include "botlog.h"
 #include "botmgr.h"

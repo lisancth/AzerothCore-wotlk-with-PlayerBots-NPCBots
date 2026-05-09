@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botspell.h"
 #include "bottraits.h"
 #include "MotionMaster.h"

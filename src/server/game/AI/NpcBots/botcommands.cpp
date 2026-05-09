@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botdatamgr.h"
 #include "botdump.h"
 #include "botgearscore.h"
@@ -2231,7 +2231,7 @@ public:
             return true;
         }
 
-        bot_ai::BotAction action(BotActionTypes::BOT_ACTION_PULL);
+        bot_ai::BotAction action(NpcBotActionTypes::BOT_ACTION_PULL);
         action.params.pull_params.target_guid = target_guid;
 
         if (bot->GetBotAI()->EnqueueAction(std::move(action), true))
@@ -2438,7 +2438,7 @@ public:
             return true;
         }
 
-        bot_ai::BotAction action(BotActionTypes::BOT_ACTION_SPELLCAST);
+        bot_ai::BotAction action(NpcBotActionTypes::BOT_ACTION_SPELLCAST);
         action.params.spell_cast_params.base_spell = base_spell;
         action.params.spell_cast_params.target_guid = target_guid;
 

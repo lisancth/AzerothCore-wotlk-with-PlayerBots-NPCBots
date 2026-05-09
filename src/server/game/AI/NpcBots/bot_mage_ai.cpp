@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botmgr.h"
 #include "botspell.h"
 #include "bottraits.h"
@@ -224,7 +224,7 @@ public:
         void Counter(uint32 diff)
         {
             //skip if evocation, blizzard, or already queued
-            if (IsChanneling() || HasQueuedAction(BotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, COUNTERSPELL_1))
+            if (IsChanneling() || HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, COUNTERSPELL_1))
                 return;
 
             if (IsSpellReady(COUNTERSPELL_1, diff, false))

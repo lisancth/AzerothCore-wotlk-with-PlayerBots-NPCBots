@@ -1,4 +1,4 @@
-#ifndef BOT_LOG_TRAITS_H_
+﻿#ifndef BOT_LOG_TRAITS_H_
 #define BOT_LOG_TRAITS_H_
 
 #include "botcommon.h"

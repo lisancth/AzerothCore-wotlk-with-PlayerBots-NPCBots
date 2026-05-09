@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botmgr.h"
 #include "bottext.h"
 #include "bottraits.h"
@@ -365,7 +365,7 @@ public:
             }
             //Kick
             if (IsSpellReady(KICK_1, diff, false) && !stealthed && dist <= 5 &&
-                energy >= ecost(KICK_1) && !HasQueuedAction(BotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, KICK_1) &&
+                energy >= ecost(KICK_1) && !HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, KICK_1) &&
                 mytar->IsNonMeleeSpellCast(false, false, true))
             {
                 if (EnqueueCounterSpellAction(mytar->GetGUID(), KICK_1, true))

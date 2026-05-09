@@ -1,6 +1,6 @@
+﻿#include "botgearscore.h"
 #include "bot_ai.h"
 #include "botdatamgr.h"
-#include "botgearscore.h"
 #include "Creature.h"
 #include "Item.h"
 

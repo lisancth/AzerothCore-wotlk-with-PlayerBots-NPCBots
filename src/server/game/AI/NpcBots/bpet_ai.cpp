@@ -1,4 +1,4 @@
-#include "bpet_ai.h"
+﻿#include "bpet_ai.h"
 #include "bot_GridNotifiers.h"
 #include "botmgr.h"
 #include "LFGMgr.h"
@@ -1574,7 +1574,7 @@ bool bot_pet_ai::CheckAttackTarget()
 
         return false;
     }
-    if (petOwner->GetBotAI()->IsActionNext(BotActionTypes::BOT_ACTION_PULL, 0, opponent->GetGUID()))
+    if (petOwner->GetBotAI()->IsActionNext(NpcBotActionTypes::BOT_ACTION_PULL, 0, opponent->GetGUID()))
         return false;
 
     if (reset)

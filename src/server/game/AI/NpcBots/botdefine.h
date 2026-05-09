@@ -1,4 +1,4 @@
-#ifndef BOTDEFINE_H_
+﻿#ifndef BOTDEFINE_H_
 #define BOTDEFINE_H_
 
 #include "Define.h"

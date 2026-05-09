@@ -1,4 +1,4 @@
-#ifndef BOT_GEARSCORE_H_
+﻿#ifndef BOT_GEARSCORE_H_
 #define BOT_GEARSCORE_H_
 
 #include "botcommon.h"

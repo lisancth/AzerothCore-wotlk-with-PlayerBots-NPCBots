@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botmgr.h"
 #include "bottext.h"
 #include "bottraits.h"
@@ -905,7 +905,7 @@ public:
 
         void Counter(uint32 diff)
         {
-            if (!IsSpellReady(WIND_SHEAR_1, diff, false) || (HasRole(NPC_BOT_ROLE_HEAL) && IsCasting()) || HasQueuedAction(BotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, WIND_SHEAR_1))
+            if (!IsSpellReady(WIND_SHEAR_1, diff, false) || (HasRole(NPC_BOT_ROLE_HEAL) && IsCasting()) || HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, WIND_SHEAR_1))
                 return;
 
             if (Unit* target = FindCastingTarget(CalcSpellMaxRange(WIND_SHEAR_1), 0, WIND_SHEAR_1))

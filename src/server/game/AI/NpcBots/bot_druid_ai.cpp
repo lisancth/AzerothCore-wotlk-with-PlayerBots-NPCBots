@@ -531,6 +531,18 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            if (me->GetShapeshiftForm() == FORM_NONE)
+            {
+                if (_form != BOT_STANCE_NONE)
+                {
+                    removeShapeshiftForm();
+                }
+                else if (me->GetPowerType() != POWER_MANA)
+                {
+                    me->SetPowerType(POWER_MANA);
+                }
+            }
+
             if (me->GetPowerType() == POWER_RAGE && me->IsAlive())
             {
                 if (ragetimer <= diff)
@@ -2630,7 +2642,7 @@ public:
             for (uint8 i = 0; i != MAX_TREANTS; ++i)
                 _treants[i] = ObjectGuid::Empty;
 
-            //_form = BOT_STANCE_NONE;
+            _form = BOT_STANCE_NONE;
             rage = 0;
             removeShapeshiftForm();
 

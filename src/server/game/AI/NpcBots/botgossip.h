@@ -1,4 +1,4 @@
-#ifndef BOTGOSSIP_H
+﻿#ifndef BOTGOSSIP_H
 #define BOTGOSSIP_H
 
 #include "Define.h"

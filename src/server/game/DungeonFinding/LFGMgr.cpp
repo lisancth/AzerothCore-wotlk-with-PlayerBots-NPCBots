@@ -34,6 +34,7 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "RBAC.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
 #include "SocialMgr.h"
@@ -502,7 +503,9 @@ namespace lfg
 
             uint32 lockData = 0;
 
-            if (dungeon->expansion > expansion || (onlySeasonalBosses && !dungeon->seasonal))
+            if (!player->GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_DUNGEON_FINDER))
+                lockData = LFG_LOCKSTATUS_RAID_LOCKED;
+            else if (dungeon->expansion > expansion || (onlySeasonalBosses && !dungeon->seasonal))
                 lockData = LFG_LOCKSTATUS_INSUFFICIENT_EXPANSION;
             else if (IsDungeonDisabled(dungeon->map, dungeon->difficulty))
                 lockData = LFG_LOCKSTATUS_RAID_LOCKED;
@@ -707,7 +710,11 @@ namespace lfg
         if (!isRaid && joinData.result == LFG_JOIN_OK)
         {
             // Check player or group member restrictions
-            if (player->InBattleground() || (player->InBattlegroundQueue() && !sWorld->getBoolConfig(CONFIG_ALLOW_JOIN_BG_AND_LFG)))
+            if (!player->GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_DUNGEON_FINDER))
+            {
+                joinData.result = LFG_JOIN_NOT_MEET_REQS;
+            }
+            else if (player->InBattleground() || (player->InBattlegroundQueue() && !sWorld->getBoolConfig(CONFIG_ALLOW_JOIN_BG_AND_LFG)))
             {
                 joinData.result = LFG_JOIN_USING_BG_SYSTEM;
             }
@@ -730,7 +737,11 @@ namespace lfg
                     {
                         if (Player* plrg = itr->GetSource())
                         {
-                            if (plrg->HasAura(LFG_SPELL_DUNGEON_DESERTER))
+                            if (!plrg->GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_DUNGEON_FINDER))
+                            {
+                                joinData.result = LFG_JOIN_PARTY_NOT_MEET_REQS;
+                            }
+                            else if (plrg->HasAura(LFG_SPELL_DUNGEON_DESERTER))
                             {
                                 joinData.result = LFG_JOIN_PARTY_DESERTER;
                             }
@@ -932,11 +943,11 @@ namespace lfg
                         uint8 broles = PLAYER_ROLE_DAMAGE;
                         if (bot->GetBotClass() == CLASS_WARRIOR || bot->GetBotClass() == CLASS_PALADIN ||
                             bot->GetBotClass() == CLASS_DEATH_KNIGHT || bot->GetBotClass() == CLASS_DRUID ||
-                            (bot->GetBotRoles() & BOT_ROLE_TANK))
+                            (bot->GetBotRoles() & NPC_BOT_ROLE_TANK))
                             broles |= PLAYER_ROLE_TANK;
                         if (bot->GetBotClass() == CLASS_PRIEST || bot->GetBotClass() == CLASS_DRUID ||
                             bot->GetBotClass() == CLASS_SHAMAN || bot->GetBotClass() == CLASS_PALADIN ||
-                            (bot->GetBotRoles() & BOT_ROLE_HEAL))
+                            (bot->GetBotRoles() & NPC_BOT_ROLE_HEAL))
                             broles |= PLAYER_ROLE_HEALER;
                         //remove unneeded / occupied roles so players can go with role they choose
                         if (roles & PLAYER_ROLE_TANK)

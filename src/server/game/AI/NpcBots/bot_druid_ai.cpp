@@ -245,6 +245,8 @@ public:
         {
             _botclass = BOT_CLASS_DRUID;
 
+            manatimer = 2000;
+
             InitUnitFlags();
         }
 
@@ -562,6 +564,24 @@ public:
             }
             else if (me->GetPowerType() == POWER_ENERGY)
                 getenergy();
+
+            if (me->GetPowerType() != POWER_MANA && me->IsAlive())
+            {
+                if (manatimer <= diff)
+                {
+                    uint32 maxmana = me->GetMaxPower(POWER_MANA);
+                    if (me->GetPower(POWER_MANA) < maxmana)
+                    {
+                        uint32 add = 5 + maxmana / 64; // base regen
+                        if (!me->IsInCombat())
+                            add *= 2;
+                        me->ModifyPower(POWER_MANA, int32(add));
+                    }
+                    manatimer = 2000;
+                }
+                else
+                    manatimer -= diff;
+            }
 
             if (!GlobalUpdate(diff))
                 return;
@@ -2999,6 +3019,7 @@ public:
         bool hibery;
         uint32 hiberyCheckTimer;
 /*Misc*/int32 rage, energy;
+        uint32 manatimer;
 
         typedef std::unordered_map<uint32 /*baseId*/, int32 /*amount*/> HealMap;
         HealMap _heals;

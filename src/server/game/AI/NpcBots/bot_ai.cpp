@@ -641,6 +641,7 @@ void bot_ai::ResetBotAI(uint8 resetType)
         spawned = false;
         ResetContestedPvP();
     }
+    InitRace(); //Force sync of resource bars on every reset/teleport
 }
 
 bool bot_ai::_checkImmunities(Unit const* target, SpellInfo const* spellInfo) const

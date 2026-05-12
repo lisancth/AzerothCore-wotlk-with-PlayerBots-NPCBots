@@ -2721,6 +2721,7 @@ public:
                     me->SetPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
                     break;
             }
+            InitRace(); //Sync bytes
         }
 
         void InitSpells() override

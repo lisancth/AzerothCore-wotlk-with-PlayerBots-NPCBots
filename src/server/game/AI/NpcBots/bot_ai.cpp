@@ -15102,7 +15102,14 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race); //set race
+    uint8 race = _botExtras->race;
+    //Client UI (especially TargetFrame) often fails to render resource bars if the race ID is unknown (>11).
+    //We 'spoof' the race byte to a standard one (Orc for Horde-like, Human for Alliance-like) if it's a custom race.
+    uint8 spoofRace = race;
+    if (race > 11)
+        spoofRace = (me->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
+
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace); //set race (possibly spoofed)
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass); //set class (CRITICAL FOR UI)
     me->SetByteValue(UNIT_FIELD_BYTES_0, 3, me->GetPowerType()); //set power type (CRITICAL FOR UI)
 }
@@ -15171,6 +15178,7 @@ void bot_ai::SetSpec(uint8 spec, bool activate)
         ApplyRacials();
         //from SetStats
         InitPowers();
+        InitRace(); //Update bytes AFTER power type is determined
         InitSpells();
         ApplyClassPassives();
         InitHeals();

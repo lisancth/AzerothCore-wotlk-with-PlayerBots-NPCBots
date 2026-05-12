@@ -15103,6 +15103,8 @@ void bot_ai::InitFaction()
 void bot_ai::InitRace()
 {
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race); //set race
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass); //set class (CRITICAL FOR UI)
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, me->GetPowerType()); //set power type (CRITICAL FOR UI)
 }
 
 void bot_ai::InitOwner()
@@ -15168,14 +15170,14 @@ void bot_ai::SetSpec(uint8 spec, bool activate)
         ApplyItemsSpells();
         ApplyRacials();
         //from SetStats
-        //InitPowers();
+        InitPowers();
         InitSpells();
         ApplyClassPassives();
         InitHeals();
 
-        me->SetPower(POWER_MANA, 0);
-        me->SetPower(POWER_RAGE, 0);
-        me->SetPower(POWER_ENERGY, 0);
+        me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA));
+        me->SetPower(POWER_RAGE, me->GetMaxPower(POWER_RAGE));
+        me->SetPower(POWER_ENERGY, me->GetMaxPower(POWER_ENERGY));
     }
 }
 

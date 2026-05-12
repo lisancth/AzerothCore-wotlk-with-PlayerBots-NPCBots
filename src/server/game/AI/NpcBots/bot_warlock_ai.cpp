@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botmgr.h"
 #include "botspell.h"
 #include "bottraits.h"
@@ -592,8 +592,21 @@ public:
             return false;
         }
 
+        void UpdateDeadAI(uint32 diff) override
+        {
+            if (me->GetPowerType() != POWER_MANA)
+                me->SetPowerType(POWER_MANA);
+
+            bot_ai::UpdateDeadAI(diff);
+        }
+
         void UpdateAI(uint32 diff) override
         {
+            if (me->GetPowerType() != POWER_MANA)
+            {
+                me->SetPowerType(POWER_MANA);
+            }
+
             if (!GlobalUpdate(diff))
                 return;
 
@@ -676,8 +689,8 @@ public:
                 if (doCast(me, GetSpell(DARK_PACT_1)))
                     return;
             }
-            else if (IsSpellReady(LIFE_TAP_1, diff) && !IsCasting() && GetHealthPCT(me) > (me->IsInCombat() ? 30 : 15) &&
-                GetManaPCT(me) < 15 && Rand() < 50)
+            else if (IsSpellReady(LIFE_TAP_1, diff) && !IsCasting() && GetHealthPCT(me) > (me->IsInCombat() ? 35 : 15) &&
+                GetManaPCT(me) < 45)
             {
                 //it is possible that CheckCast will return SPELL_FAILED_NO_POWER if not enough hp
                 if (doCast(me, GetSpell(LIFE_TAP_1)))

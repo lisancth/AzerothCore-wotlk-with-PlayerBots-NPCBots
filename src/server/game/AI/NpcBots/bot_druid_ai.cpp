@@ -2696,12 +2696,18 @@ public:
                 case FORM_BEAR:
                 case FORM_DIREBEAR:
                     me->SetPowerType(POWER_RAGE);
+                    me->SetMaxPower(POWER_RAGE, uint32(me->GetMaxPower(POWER_RAGE)));
+                    me->SetPower(POWER_RAGE, uint32(me->GetMaxPower(POWER_RAGE)));
                     break;
                 case FORM_CAT:
                     me->SetPowerType(POWER_ENERGY);
+                    me->SetMaxPower(POWER_ENERGY, uint32(me->GetMaxPower(POWER_ENERGY)));
+                    me->SetPower(POWER_ENERGY, uint32(me->GetMaxPower(POWER_ENERGY)));
                     break;
                 default:
                     me->SetPowerType(POWER_MANA);
+                    me->SetMaxPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
+                    me->SetPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
                     break;
             }
         }

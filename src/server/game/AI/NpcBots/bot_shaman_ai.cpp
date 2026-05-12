@@ -2518,6 +2518,8 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_MANA);
+            me->SetMaxPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
+            me->SetPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
         }
 
         void InitSpells() override

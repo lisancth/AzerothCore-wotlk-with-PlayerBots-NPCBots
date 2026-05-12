@@ -631,12 +631,13 @@ class bot_ai : public CreatureAI
         void ResetChaseTimer(Position const* pos);
         void ResetChase(Position const* pos);
 
-        void ApplyRacials();
         void InitRoles();
         void InitSpec();
         void InitEquips();
         void InitOwner();
         void InitFaction();
+    protected:
+        void ApplyRacials();
         void InitRace();
 
         bool _canCureTarget(Unit const* target, uint32 cureSpell) const;

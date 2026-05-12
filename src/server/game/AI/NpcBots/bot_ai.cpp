@@ -15107,7 +15107,7 @@ void bot_ai::InitRace()
     //We 'spoof' the race byte to a standard one (Orc for Horde-like, Human for Alliance-like) if it's a custom race.
     uint8 spoofRace = race;
     if (race > 11)
-        spoofRace = (me->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
+        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
 
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace); //set race (possibly spoofed)
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass); //set class (CRITICAL FOR UI)

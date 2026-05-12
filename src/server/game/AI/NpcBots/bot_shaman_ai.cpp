@@ -955,18 +955,21 @@ public:
                 if (doCast(me, GetSpell(REINCARNATION_1)))
                     return;
 
+            if (me->GetPowerType() != POWER_MANA)
+                me->SetPowerType(POWER_MANA);
+
             bot_ai::UpdateDeadAI(diff);
         }
 
         void UpdateAI(uint32 diff) override
         {
-            if (!GlobalUpdate(diff))
-                return;
-
-            if (me->GetPowerType() != POWER_MANA && me->IsAlive())
+            if (me->GetPowerType() != POWER_MANA)
             {
                 me->SetPowerType(POWER_MANA);
             }
+
+            if (!GlobalUpdate(diff))
+                return;
 
             DoVehicleActions(diff);
             if (!CanBotAttackOnVehicle())
@@ -1384,10 +1387,14 @@ public:
             if (xppct >= 95 && hp >= 25 && !pointed)
                 return false;
 
+            Unit const* u = target->GetVictim();
+            bool tanking = IsTank(target) && (target->IsInCombat() || (u && u->ToCreature() && u->ToCreature()->isWorldBoss()));
+
+            //Nature's Swiftness + Healing Wave (Emergency)
             if (IsSpellReady(NATURES_SWIFTNESS_1, diff, false) && Rand() < 80 &&
-                (me->IsInCombat() || target->IsInCombat()) &&//may just revive
-                hp <= 20 && xppct <= 0 && xphploss > _heals[HEALING_WAVE_1] / 2 &&
-                (target->GetTypeId() == TYPEID_PLAYER || IsTank(target) || target->IsInCombat() || !target->getAttackers().empty()))
+                (me->IsInCombat() || target->IsInCombat()) &&
+                (hp <= 25 || (hp <= 40 && xppct <= 10)) &&
+                (target->GetTypeId() == TYPEID_PLAYER || IsTank(target) || !target->getAttackers().empty()))
             {
                 me->InterruptNonMeleeSpells(false);
                 if (doCast(me, GetSpell(NATURES_SWIFTNESS_1)))
@@ -1399,31 +1406,33 @@ public:
 
             if (IsCasting()) return false;
 
-            Unit const* u = target->GetVictim();
-            bool tanking = u && IsTank(target) && u->ToCreature() && u->ToCreature()->isWorldBoss();
-
+            //Healing Wave (Big Heal)
             if (IsSpellReady(HEALING_WAVE_1, diff) &&
-                (xppct >= 15 || !GetSpell(LESSER_HEALING_WAVE_1)) && xphploss > _heals[HEALING_WAVE_1])
+                (xppct >= 10 || !GetSpell(LESSER_HEALING_WAVE_1)) && 
+                (xphploss > _heals[HEALING_WAVE_1] || (hp < 60 && tanking) || hp < 35))
             {
                 if (doCast(target, GetSpell(HEALING_WAVE_1)))
                     return true;
             }
-            //Riptide stacks from different casters
-            if (IsSpellReady(RIPTIDE_1, diff) && hp <= 85 && (tanking || hps < 0 || xphploss > _heals[RIPTIDE_1]) &&
-                !target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_SHAMAN, 0x0, 0x0, 0x10, me->GetGUID())
-                /*!target->HasAura(GetSpell(RIPTIDE_1), me->GetGUID())*/)
+
+            //Riptide (Instant + HoT + Tidal Waves proc)
+            if (IsSpellReady(RIPTIDE_1, diff) && hp <= 92 && (tanking || hps < 0 || xphploss > _heals[RIPTIDE_1]) &&
+                !target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_SHAMAN, 0x0, 0x0, 0x10, me->GetGUID()))
             {
                 if (doCast(target, GetSpell(RIPTIDE_1)))
                     return true;
             }
-            if (IsSpellReady(CHAIN_HEAL_1, diff) && !IAmFree() && xppct > 35 && xphploss > _heals[CHAIN_HEAL_1] &&
+
+            //Chain Heal (Group Heal)
+            if (IsSpellReady(CHAIN_HEAL_1, diff) && !IAmFree() && xppct > 30 && xphploss > _heals[CHAIN_HEAL_1] &&
                 (!tanking || Rand() < 60 || target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_SHAMAN, 0x0, 0x0, 0x10, me->GetGUID())))
             {
                 if (doCast(target, GetSpell(CHAIN_HEAL_1)))
                     return true;
             }
 
-            if (IsSpellReady(LESSER_HEALING_WAVE_1, diff) && xphploss > _heals[LESSER_HEALING_WAVE_1])
+            //Lesser Healing Wave (Fast Heal)
+            if (IsSpellReady(LESSER_HEALING_WAVE_1, diff) && (xphploss > _heals[LESSER_HEALING_WAVE_1] || hp < 85))
             {
                 if (doCast(target, GetSpell(LESSER_HEALING_WAVE_1)))
                     return true;

@@ -15106,16 +15106,17 @@ void bot_ai::InitRace()
     uint8 race = _botExtras->race;
     uint8 spoofRace = race;
     //Client UI (especially TargetFrame) fails to render resource bars if the race ID is unknown (>11).
-    //We spoof to Night Elf (Alliance) or Blood Elf (Horde) as they have better portrait compatibility for custom models.
+    //We spoof to Human (Alliance) or Orc (Horde) as these are the most compatible for UI logic.
     if (race > 11)
-        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_NIGHTELF) : uint8(RACE_BLOODELF);
+        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
 
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, _botExtras->gender); //Set gender byte to help with portrait/voice
     me->SetByteValue(UNIT_FIELD_BYTES_0, 3, me->GetPowerType());
 
-    //The player-controlled flag is also helpful for some UI elements
-    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+    //Force re-render of portrait camera by re-setting DisplayID
+    me->SetDisplayId(me->GetDisplayId());
 }
 
 void bot_ai::InitOwner()

@@ -594,21 +594,16 @@ public:
 
         void UpdateDeadAI(uint32 diff) override
         {
-            if (me->GetPowerType() != POWER_MANA)
-                me->SetPowerType(POWER_MANA);
-
             bot_ai::UpdateDeadAI(diff);
         }
 
         void UpdateAI(uint32 diff) override
         {
-            if (me->GetPowerType() != POWER_MANA)
-            {
-                me->SetPowerType(POWER_MANA);
-            }
-
             if (!GlobalUpdate(diff))
                 return;
+
+            if (me->GetPowerType() != POWER_MANA)
+                me->SetPowerType(POWER_MANA);
 
             DoVehicleActions(diff);
             if (!CanBotAttackOnVehicle())

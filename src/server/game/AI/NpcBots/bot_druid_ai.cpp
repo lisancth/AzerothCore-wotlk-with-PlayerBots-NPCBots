@@ -533,9 +533,6 @@ public:
 
         void UpdateDeadAI(uint32 diff) override
         {
-            if (me->GetShapeshiftForm() == FORM_NONE && me->GetPowerType() != POWER_MANA)
-                me->SetPowerType(POWER_MANA);
-
             bot_ai::UpdateDeadAI(diff);
         }
 
@@ -546,10 +543,6 @@ public:
                 if (_form != BOT_STANCE_NONE)
                 {
                     removeShapeshiftForm();
-                }
-                else if (me->GetPowerType() != POWER_MANA)
-                {
-                    me->SetPowerType(POWER_MANA);
                 }
             }
 

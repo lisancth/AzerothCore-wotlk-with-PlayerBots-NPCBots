@@ -955,25 +955,20 @@ public:
                 if (doCast(me, GetSpell(REINCARNATION_1)))
                     return;
 
-            if (me->GetPowerType() != POWER_MANA)
-                me->SetPowerType(POWER_MANA);
-
             bot_ai::UpdateDeadAI(diff);
         }
 
         void UpdateAI(uint32 diff) override
         {
-            if (me->GetPowerType() != POWER_MANA)
-            {
-                me->SetPowerType(POWER_MANA);
-            }
-
             if (!GlobalUpdate(diff))
                 return;
 
             DoVehicleActions(diff);
             if (!CanBotAttackOnVehicle())
                 return;
+
+            if (me->GetPowerType() != POWER_MANA)
+                me->SetPowerType(POWER_MANA);
 
             CheckShamanisticRage(diff);
             CheckThunderStorm(diff);

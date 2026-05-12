@@ -2518,6 +2518,8 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_MANA);
+            me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
+            me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
             me->SetMaxPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
             me->SetPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
         }

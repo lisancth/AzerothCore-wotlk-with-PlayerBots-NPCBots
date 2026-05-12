@@ -1614,6 +1614,7 @@ public:
                         //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_RAGE");
                         me->SetPowerType(POWER_RAGE);
                     }
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_RAGE);
                     RefreshAura(MASTER_SHAPESHIFTER_BEAR_BUFF, me->GetLevel() >= 20);
                     if (GetSpec() == BOT_SPEC_DRUID_FERAL)
                     {
@@ -1628,6 +1629,7 @@ public:
                         //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_ENERGY");
                         me->SetPowerType(POWER_ENERGY);
                     }
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
                     RefreshAura(MASTER_SHAPESHIFTER_CAT_BUFF, me->GetLevel() >= 20);
                     RefreshAura(FERAL_SWIFTNESS, me->GetLevel() >= 20); //talents ignore forms for creatures so put that here
                     if (GetSpec() == BOT_SPEC_DRUID_FERAL)
@@ -1642,6 +1644,7 @@ public:
                         //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (moonkin)");
                         me->SetPowerType(POWER_MANA);
                     }
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
                     RefreshAura(MASTER_SHAPESHIFTER_MOONKIN_BUFF, me->GetLevel() >= 20);
                     RefreshAura(OWLKIN_FRENZY, me->GetLevel() >= 45);
                     break;
@@ -1651,6 +1654,7 @@ public:
                         //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (tree)");
                         me->SetPowerType(POWER_MANA);
                     }
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
                     RefreshAura(MASTER_SHAPESHIFTER_TREE_BUFF, me->GetLevel() >= 20);
                     break;
                 case DRUID_TRAVEL_FORM:
@@ -1659,6 +1663,7 @@ public:
                         //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (travel)");
                         me->SetPowerType(POWER_MANA);
                     }
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
                     break;
                 case DRUID_AQUATIC_FORM:
                     if (me->GetPowerType() != POWER_MANA)
@@ -1666,6 +1671,7 @@ public:
                         //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (aquatic)");
                         me->SetPowerType(POWER_MANA);
                     }
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
                     break;
                 case DRUID_FLIGHT_FORM:
                     if (me->GetPowerType() != POWER_MANA)
@@ -1687,6 +1693,7 @@ public:
                     return;
             }
 
+            me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
             SetShouldUpdateStats();
             SetStats(false);
         }
@@ -2691,21 +2698,25 @@ public:
 
         void InitPowers() override
         {
+            me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
             switch (me->GetShapeshiftForm())
             {
                 case FORM_BEAR:
                 case FORM_DIREBEAR:
                     me->SetPowerType(POWER_RAGE);
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_RAGE);
                     me->SetMaxPower(POWER_RAGE, uint32(me->GetMaxPower(POWER_RAGE)));
                     me->SetPower(POWER_RAGE, uint32(me->GetMaxPower(POWER_RAGE)));
                     break;
                 case FORM_CAT:
                     me->SetPowerType(POWER_ENERGY);
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
                     me->SetMaxPower(POWER_ENERGY, uint32(me->GetMaxPower(POWER_ENERGY)));
                     me->SetPower(POWER_ENERGY, uint32(me->GetMaxPower(POWER_ENERGY)));
                     break;
                 default:
                     me->SetPowerType(POWER_MANA);
+                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
                     me->SetMaxPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
                     me->SetPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
                     break;

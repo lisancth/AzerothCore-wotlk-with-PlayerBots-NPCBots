@@ -1,4 +1,4 @@
-#ifndef BOTLOG_H_
+﻿#ifndef BOTLOG_H_
 #define BOTLOG_H_
 
 #include "Define.h"

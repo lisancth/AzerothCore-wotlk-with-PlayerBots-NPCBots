@@ -1,3 +1,4 @@
+﻿#include "botdump.h"
 /*
  * NpcBots Data Migration System by Trickerer (onlysuffering@gmail.com)
  *
@@ -12,7 +13,6 @@
  * Make sure you have bots installed, or you are in for an unpleasant surprise.
  */
 
-#include "botdump.h"
 #include "botdatamgr.h"
 #include "DatabaseEnv.h"
 #include "Log.h"

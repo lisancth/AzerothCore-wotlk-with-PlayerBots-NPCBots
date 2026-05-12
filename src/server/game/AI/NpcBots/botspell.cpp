@@ -1,5 +1,5 @@
+﻿#include "botspell.h"
 #include "botdefine.h"
-#include "botspell.h"
 #include "DBCStores.h"
 #include "Log.h"
 #include "SpellInfo.h"

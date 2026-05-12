@@ -1,9 +1,9 @@
+#include "bot_ai.h"
 #include "Battleground.h"
 #include "BattlegroundAB.h"
 #include "BattlegroundAV.h"
 #include "BattlegroundEY.h"
 #include "BattlegroundWS.h"
-#include "bot_ai.h"
 #include "bot_Events.h"
 #include "bot_InstanceEvents.h"
 #include "bot_GridNotifiers.h"
@@ -895,7 +895,9 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
                 if (JumpingOrFalling() || HasBotCommandState(BOT_COMMAND_STAY))
                     return false;
                 if (!me->GetVictim() && me->IsInWorld() && (me->GetMap()->IsRaid() || me->GetMap()->IsHeroic()) &&
-                    !m_botSpellInfo->HasAura(SPELL_AURA_MOUNTED))
+                    !m_botSpellInfo->HasAura(SPELL_AURA_MOUNTED) &&
+                    !m_botSpellInfo->HasAura(SPELL_AURA_MOD_SHAPESHIFT) &&
+                    !m_botSpellInfo->HasEffect(SPELL_EFFECT_APPLY_AURA))
                     return false;
                 if (!m_botSpellInfo->HasEffect(SPELL_EFFECT_HEAL) && Rand() > (IAmFree() ? 80 : 50))
                     return false;
@@ -972,12 +974,12 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
     {
         //failed to cast
         if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) &&
-            !_orders.empty() && _orders.front()._type == BOT_ORDER_SPELLCAST &&
-            _orders.front().params.spellCastParams.baseSpell == m_botSpellInfo->GetFirstRankSpell()->Id)
+            HasQueuedActions() && GetFirstActionInQueue()._type == NpcBotActionTypes::BOT_ACTION_SPELLCAST &&
+            GetFirstActionInQueue().params.spell_cast_params.base_spell == m_botSpellInfo->GetFirstRankSpell()->Id)
         {
-            if (DEBUG_BOT_ORDERS)
-                BOT_LOG_ERROR("entities.player", "doCast(): ordered spell {} is not casted!", m_botSpellInfo->Id);
-            CancelOrder(_orders.front());
+            GC_Timer = 0;
+            OnBotSpellStart(m_botSpellInfo);
+            CancelAction(GetFirstActionInQueue());
         }
 
         return false;
@@ -1156,7 +1158,7 @@ void bot_ai::_calculatePos(Unit const* followUnit, Position& pos, float* speed/*
 // Movement set
 // Uses MovePoint() for following instead of MoveFollow()
 // This helps bots overcome a bug with fanthom walls on grid borders blocking pathing
-void bot_ai::BotMovement(BotMovementType type, Position const* pos, Unit* target, bool generatePath, float speed) const
+void bot_ai::BotMovement(NpcBotMovementType type, Position const* pos, Unit* target, bool generatePath, float speed) const
 {
     Vehicle* veh = me->GetVehicle();
     VehicleSeatEntry const* seat = veh ? veh->GetSeatForPassenger(me) : nullptr;
@@ -2133,7 +2135,7 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         //ch.PSendSysMessage("base total {}: {:.1f}", mystat, totalstat);
         if (unit == me)
         {
-            BotStatMods t = MAX_BOT_ITEM_MOD;
+            NpcBotStatMods t = MAX_BOT_ITEM_MOD;
             switch (i)
             {
                 case STAT_STRENGTH:     t = BOT_STAT_MOD_STRENGTH;  break;
@@ -2670,7 +2672,7 @@ void bot_ai::SetStats(bool force)
     for (uint8 i = SPELL_SCHOOL_HOLY; i != MAX_SPELL_SCHOOL; ++i)
     {
         value = IAmFree() ? 0 : (GetBG() && GetBG()->isArena()) ? 0 : mylevel;
-        value += _getTotalBotStat(BotStatMods(BOT_STAT_MOD_RESIST_HOLY + (i - 1)));
+        value += _getTotalBotStat(NpcBotStatMods(BOT_STAT_MOD_RESIST_HOLY + (i - 1)));
 
         //res bonuses
         if (_botclass == BOT_CLASS_SPHYNX)
@@ -3446,6 +3448,10 @@ void bot_ai::SetStats(bool force)
 
     if (botPet)
         botPet->GetBotPetAI()->SetShouldUpdateStats();
+
+    // Force visual sync for higher version cores/clients
+    if (!IsTempBot())
+        me->SetDisplayId(me->GetDisplayId());
 }
 
 //Emotion-based action
@@ -3600,7 +3606,7 @@ void bot_ai::ReceiveEmote(Player* player, uint32 emote)
             if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER))
             {
                 report << "\n  pending orders that may have got stuck";
-                CancelAllOrders();
+                CancelAllActions();
             }
             if (HasBotCommandState(BOT_COMMAND_NOGOSSIP))
             {
@@ -3846,7 +3852,7 @@ bool bot_ai::CanBotAttack(Unit const* target, int8 byspell, bool secondary) cons
         }
     }
 
-    bool pulling = IsLastOrder(BOT_ORDER_PULL, 0, target->GetGUID());
+    bool pulling = IsActionNext(NpcBotActionTypes::BOT_ACTION_PULL, 0, target->GetGUID());
     uint8 followdist = IAmFree() ? BotMgr::GetBotFollowDistMax() : master->GetBotMgr()->GetBotFollowDist();
     float foldist = _getAttackDistance(float(followdist));
     if (!IAmFree() && IsRanged() && me->IsWithinLOSInMap(target, VMAP::ModelIgnoreFlags::M2, LINEOFSIGHT_ALL_CHECKS))
@@ -3917,7 +3923,7 @@ bool bot_ai::CanBotAttackOnVehicle() const
 //GETVEHICLETARGET
 //Returns attack target or 'no target'
 //All code above 'x = _getVehicleTarget() call must not dereference opponent since it can be invalid
-Unit* bot_ai::_getVehicleTarget(BotVehicleStrats /*strat*/) const
+Unit* bot_ai::_getVehicleTarget(NpcBotVehicleStrats /*strat*/) const
 {
     ASSERT(!IAmFree());
     Creature* veh = me->GetVehicleCreatureBase();
@@ -4064,9 +4070,9 @@ std::tuple<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &re
     //orders
     if (!IAmFree() && HasOrders() && HasRole(NPC_BOT_ROLE_DPS) && !me->IsInCombat() && me->getAttackers().empty())
     {
-        if (_orders.front()._type == BOT_ORDER_PULL)
+        if (GetFirstActionInQueue()._type == NpcBotActionTypes::BOT_ACTION_PULL)
         {
-            ObjectGuid orderTargetGuid = ObjectGuid(_orders.front().params.pullParams.targetGuid);
+            ObjectGuid orderTargetGuid = GetFirstActionInQueue().params.pull_params.target_guid;
             if (Unit* orderTarget = mytar && mytar->GetGUID() == orderTargetGuid ? mytar : ObjectAccessor::GetUnit(*me, orderTargetGuid))
             {
                 if (CanBotAttack(orderTarget))
@@ -7036,7 +7042,7 @@ bool bot_ai::IsSpellReady(uint32 basespell, uint32 diff, bool checkGCD) const
 
     BotSpellMap::const_iterator itr = _spells.find(basespell);
     return itr == _spells.end() ? true :
-        ((itr->second->enabled == true || IAmFree() || IsLastOrder(BOT_ORDER_SPELLCAST, basespell)) &&
+        ((itr->second->enabled == true || IAmFree() || IsActionNext(NpcBotActionTypes::BOT_ACTION_SPELLCAST, basespell)) &&
             itr->second->spellId != 0 && itr->second->cooldown <= diff);
 }
 //Using first-rank spell as source, sets cooldown for current spell
@@ -7884,8 +7890,16 @@ float bot_ai::CalcSpellMaxRange(uint32 spellId, bool enemy) const
 //GossipHello
 bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
 {
+    // Auto-heal stale BOT_COMMAND_ISSUED_ORDER flag
+    if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) && !HasQueuedActions())
+        CancelAllActions();
+
+    // Auto-heal stale IsDuringTeleport flag: if bot is in world and alive, teleport is done
+    if (IsDuringTeleport() && me->IsInWorld() && me->IsAlive())
+        SetIsDuringTeleport(false);
+
     if (!BotMgr::IsNpcBotModEnabled() || !(IsWanderer() ? BotMgr::IsWanderingClassEnabled(_botclass) : BotMgr::IsClassEnabled(_botclass)) ||
-        IsTempBot() || me->IsInCombat() || CCed(me) || IsCasting() || IsDuringTeleport() ||
+        IsTempBot() || me->IsInCombat() || CCed(me) || IsDuringTeleport() ||
         HasBotCommandState(BOT_COMMAND_ISSUED_ORDER | BOT_COMMAND_NOGOSSIP) ||
         (me->GetVehicle() && me->GetVehicle()->GetBase()->IsInCombat()) ||
         (!player->IsGameMaster() && IsWanderer()))
@@ -8166,7 +8180,11 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
 //GossipSelect
 bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32 sender, uint32 action)
 {
-    if (!BotMgr::IsNpcBotModEnabled() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
+    // Auto-heal stale BOT_COMMAND_ISSUED_ORDER flag (e.g. set before teleport/instance entry, never cleared)
+    if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) && !HasQueuedActions())
+        CancelAllActions();
+
+    if (!BotMgr::IsNpcBotModEnabled() || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
         (me->GetVehicle() && me->GetVehicle()->GetBase()->IsInCombat()))
     {
         player->PlayerTalkClass->SendCloseGossip();
@@ -10354,9 +10372,43 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
         case GOSSIP_SENDER_ABILITIES_USE:
         {
             if (uint32 basespell = action - GOSSIP_ACTION_INFO_DEF)
-                //if (CheckBotCast(me, basespell, me->GetBotClass()) == SPELL_CAST_OK)
-                    if (IsSpellReady(basespell, lastdiff, true))
-                        doCast(player, GetSpell(basespell));
+            {
+                uint32 spellId = GetSpell(basespell);
+                // For manual player casts: only check actual cooldown, NOT enabled flag or GCD
+                BotSpellMap::const_iterator sitr = _spells.find(basespell);
+                bool onCooldown = (sitr != _spells.end() && sitr->second->cooldown > lastdiff);
+                if (spellId != 0 && !onCooldown)
+                {
+                    Unit* target = player;
+                    if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId))
+                    {
+                        if (spellInfo->HasAura(SPELL_AURA_MOD_SHAPESHIFT))
+                        {
+                            target = me;
+                        }
+                        else
+                        {
+                            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                            {
+                                if (spellInfo->Effects[i].TargetA.GetTarget() == TARGET_UNIT_CASTER ||
+                                    spellInfo->Effects[i].TargetB.GetTarget() == TARGET_UNIT_CASTER)
+                                {
+                                    target = me;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // Interrupt current AI cast so player-commanded cast can proceed
+                    if (me->HasUnitState(UNIT_STATE_CASTING))
+                        me->InterruptNonMeleeSpells(false);
+                    // Mark as player-issued order: bypasses doCast AI throttling
+                    // (50% random failure, instance no-target block, cast-time restrictions)
+                    SetBotCommandState(BOT_COMMAND_ISSUED_ORDER);
+                    doCast(target, spellId);
+                    RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
+                }
+            }
 
             //break;
             action = GOSSIP_ACTION_INFO_DEF;
@@ -13935,12 +13987,12 @@ void bot_ai::ApplyItemsSpells()
     ApplyItemSetBonuses(nullptr, true); //item set bonuses
 }
 //stats bonuses from equipment
-inline float bot_ai::_getBotStat(uint8 slot, BotStatMods stat) const
+inline float bot_ai::_getBotStat(uint8 slot, NpcBotStatMods stat) const
 {
     return float(_stats[slot][stat]);
 }
 
-float bot_ai::_getTotalBotStat(BotStatMods stat) const
+float bot_ai::_getTotalBotStat(NpcBotStatMods stat) const
 {
     int32 value = 0;
     for (uint8 slot = BOT_SLOT_MAINHAND; slot != BOT_INVENTORY_SIZE; ++slot)
@@ -16281,8 +16333,8 @@ void bot_ai::JustEngagedWith(Unit* u)
 
     me->RefreshSwimmingFlag();
 
-    if (IsLastOrder(BOT_ORDER_PULL, 0, u->GetGUID()))
-        CompleteOrder(_orders.front());
+    if (IsActionNext(NpcBotActionTypes::BOT_ACTION_PULL, 0, u->GetGUID()))
+        CompleteAction(GetFirstActionInQueue());
 
     if (IAmFree() && me->GetVictim() && me->GetVictim() != u &&
         (me->getAttackers().empty() || (me->getAttackers().size() == 1u && *me->getAttackers().begin() == u)) &&
@@ -16318,10 +16370,13 @@ void bot_ai::JustEngagedWith(Unit* u)
 //killer may be NULL
 void bot_ai::JustDied(Unit* u)
 {
+    me->ClearUnitState(UNIT_STATE_CASTING);
+    me->InterruptNonMeleeSpells(false);
+
     AbortTeleport();
     AbortAwaitStateRemoval();
     KillEvents(false);
-    CancelAllOrders();
+    CancelAllActions();
 
     if (me->GetVehicle())
         me->ExitVehicle();
@@ -16578,13 +16633,10 @@ void bot_ai::OnBotSpellGo(Spell const* spell, bool ok)
         GC_Timer = 0;
 
     if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) &&
-        !_orders.empty() && _orders.front()._type == BOT_ORDER_SPELLCAST &&
-        _orders.front().params.spellCastParams.baseSpell == curInfo->GetFirstRankSpell()->Id)
+        HasQueuedActions() && GetFirstActionInQueue()._type == NpcBotActionTypes::BOT_ACTION_SPELLCAST &&
+        GetFirstActionInQueue().params.spell_cast_params.base_spell == curInfo->GetFirstRankSpell()->Id)
     {
-        if (DEBUG_BOT_ORDERS)
-            BOT_LOG_ERROR("entities.player", "doCast(): ordered spell {} by {} was {}!",
-                curInfo->Id, me->GetName().c_str(), ok ? "successful" : "unsuccessful");
-        CompleteOrder(_orders.front());
+        CompleteAction(GetFirstActionInQueue());
     }
 }
 
@@ -16677,12 +16729,10 @@ void bot_ai::OnBotSpellInterrupted(SpellSchoolMask schoolMask, uint32 unTimeMs)
         if (info->PreventionType != SPELL_PREVENTION_TYPE_SILENCE) continue;
 
         if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) &&
-            !_orders.empty() && _orders.front()._type == BOT_ORDER_SPELLCAST &&
-            _orders.front().params.spellCastParams.baseSpell == itr->first)
+            HasQueuedActions() && GetFirstActionInQueue()._type == NpcBotActionTypes::BOT_ACTION_SPELLCAST &&
+            GetFirstActionInQueue().params.spell_cast_params.base_spell == itr->first)
         {
-            if (DEBUG_BOT_ORDERS)
-                BOT_LOG_ERROR("entities.player", "doCast(): ordered spell {} was interrupted!", info->Id);
-            CompleteOrder(_orders.front());
+            CompleteAction(GetFirstActionInQueue());
         }
 
         itr->second->cooldown += unTimeMs;
@@ -16853,81 +16903,144 @@ void bot_ai::CastBotItemCombatSpell(DamageInfo const& damageInfo, Item* item, It
         }
     }
 }
-//ORDERS
-bool bot_ai::AddOrder(BotOrder&& order)
+//DELAYED ACTIONS
+bot_ai::BotAction::BotAction(NpcBotActionTypes action_type, BotMilliseconds delay, BotMilliseconds timeout) :
+    _type(action_type), _exec_window(uint32(timeout.count())), _exec_point(BotClock::now() + delay), params{} { }
+
+bool bot_ai::EnqueueAction(BotAction&& action, bool is_order)
 {
-    if (_orders.size() >= MAX_BOT_ORDERS_QUEUE_SIZE)
+    if (is_order && GetActionsQueueSize() >= (is_order ? MAX_BOT_ORDERS_QUEUE_SIZE : MAX_BOT_ACTIONS_QUEUE_SIZE))
     {
-        BOT_LOG_ERROR("scripts", "bot_ai::AddOrder: orders limit reached for {} ({})!", me->GetName().c_str(), uint32(_orders.size()));
+        BOT_LOG_ERROR("scripts", "bot_ai::EnqueueAction: {}s limit reached for {} ({})!", is_order ? "order" : "action", me->GetName(), uint32(GetActionsQueueSize()));
         return false;
     }
 
-    _orders.push(std::move(order));
+    _action_queue.insert(std::move(action));
     return true;
 }
-void bot_ai::CancelOrder(BotOrder const& order)
+void bot_ai::CancelAction(BotAction const& action)
 {
-    if (_orders.empty())
+    if (!HasQueuedActions())
     {
-        BOT_LOG_ERROR("scripts", "bot_ai::CancelOrder: {} orders are empty while trying to remove order type {}!",
-            me->GetName().c_str(), uint32(order._type));
+        BOT_LOG_ERROR("scripts", "bot_ai::CancelAction: {} actions are empty while trying to remove action type {}!",
+            me->GetName(), uint32(action._type));
         return;
     }
-    if (_orders.front()._type != order._type)
+    if (GetFirstActionInQueue() != action)
     {
-        BOT_LOG_ERROR("scripts", "bot_ai::CancelOrder: {} front order (type {}) is different from cur order (type {})!",
-            me->GetName().c_str(), uint32(_orders.front()._type), uint32(order._type));
-        return;
-    }
-
-    RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
-    _orders.pop();
-}
-void bot_ai::CompleteOrder(BotOrder const& order)
-{
-    if (_orders.empty())
-    {
-        BOT_LOG_ERROR("scripts", "bot_ai::CompleteOrder: {} orders are empty while trying to remove order type {}!",
-            me->GetName().c_str(), uint32(order._type));
-        return;
-    }
-    if (_orders.front()._type != order._type)
-    {
-        BOT_LOG_ERROR("scripts", "bot_ai::CompleteOrder: {} front order (type {}) is different from cur order (type {})!",
-            me->GetName().c_str(), uint32(_orders.front()._type), uint32(order._type));
+        BOT_LOG_ERROR("scripts", "bot_ai::CancelAction: {} front action (type {}) is different from cur action (type {})!",
+            me->GetName(), uint32(GetFirstActionInQueue()._type), uint32(action._type));
         return;
     }
 
     RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
-    _orders.pop();
+    _action_queue.erase(_action_queue.find(action));
 }
-void bot_ai::CancelAllOrders()
+void bot_ai::CompleteAction(BotAction const& action)
+{
+    if (!HasQueuedActions())
+    {
+        BOT_LOG_ERROR("scripts", "bot_ai::CompleteAction: {} actions are empty while trying to remove action type {}!",
+            me->GetName(), uint32(action._type));
+        return;
+    }
+    if (GetFirstActionInQueue()._type != action._type)
+    {
+        BOT_LOG_ERROR("scripts", "bot_ai::CompleteAction: {} front action (type {}) is different from cur action (type {})!",
+            me->GetName(), uint32(GetFirstActionInQueue()._type), uint32(action._type));
+        return;
+    }
+
+    RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
+    _action_queue.erase(_action_queue.find(action));
+}
+void bot_ai::CancelAllActions()
 {
     RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
-    while (!_orders.empty())
-        _orders.pop();
+    _action_queue.clear();
 }
-void bot_ai::_ProcessOrders()
+bool bot_ai::HasQueuedAction(NpcBotActionTypes action_type, ObjectGuid guid_param, uint32 uparam, std::optional<bool> bparam) const
 {
-    ordersTimer = 500;
-
-    while (!_orders.empty())
+    for (BotAction const& action : _action_queue)
     {
-        BotOrder const& order = _orders.front();
-        if (order._timeout <= time(0))
+        if (action._type == action_type)
         {
-            if (DEBUG_BOT_ORDERS)
-                BOT_LOG_DEBUG("npcbots", "bot_ai::_ProcessOrders: {} front order (type {}) expired...", me->GetName(), uint32(order._type));
-            CancelOrder(order);
+            switch (action_type)
+            {
+                case NpcBotActionTypes::BOT_ACTION_PULL:
+                    return guid_param.IsEmpty() || action.params.pull_params.target_guid == guid_param;
+                case NpcBotActionTypes::BOT_ACTION_SPELLCAST:
+                    return
+                        (guid_param.IsEmpty() || action.params.spell_cast_params.target_guid == guid_param) &&
+                        (!uparam || action.params.spell_cast_params.base_spell == uparam) &&
+                        (!bparam || action.params.spell_cast_params.interrupt_self == *bparam);
+                default:
+                    BOT_LOG_ERROR("scripts", "bot_ai:HasQueuedAction: invalid action type {}!", uint32(action._type));
+                    return false;
+            }
         }
-        else if (order._type == BOT_ORDER_PULL && (!HasRole(NPC_BOT_ROLE_DPS) || me->IsInCombat() || !me->getAttackers().empty()))
-            CompleteOrder(order);
+    }
+
+    return false;
+}
+bool bot_ai::IsActionNext(NpcBotActionTypes action_type, uint32 param1, ObjectGuid guidparam1) const
+{
+    if (HasQueuedActions())
+    {
+        BotAction const& action = GetFirstActionInQueue();
+        if (action_type == action._type)
+        {
+            switch (action_type)
+            {
+                case NpcBotActionTypes::BOT_ACTION_SPELLCAST:
+                    if (!param1 || action.params.spell_cast_params.base_spell == param1)
+                        return true;
+                    break;
+                case NpcBotActionTypes::BOT_ACTION_PULL:
+                    if (!guidparam1 || action.params.pull_params.target_guid == guidparam1)
+                        return true;
+                    break;
+                default:
+                    BOT_LOG_ERROR("scripts", "bot_ai:IsActionNext: invalid action type {}!", static_cast<uint32>(action_type));
+                    break;
+            }
+        }
+    }
+
+    return false;
+}
+bool bot_ai::EnqueueCounterSpellAction(ObjectGuid target_guid, uint32 base_spell, bool interrupt_self_cast)
+{
+    const auto delay_roll = IAmFree() ? BotMilliseconds(urand(BOT_ACTION_COUNTERSPELL_DELAY_RANGE.first, BOT_ACTION_COUNTERSPELL_DELAY_RANGE.second)) : 0ms;
+    auto action = BotAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, delay_roll, 700ms);
+    action.params.spell_cast_params.target_guid = target_guid;
+    action.params.spell_cast_params.base_spell = base_spell;
+    action.params.spell_cast_params.interrupt_self = interrupt_self_cast;
+    return EnqueueAction(std::move(action), false);
+}
+void bot_ai::_processQueuedActions()
+{
+    const BotTimePoint now = BotClock::now();
+
+    while (HasQueuedActions())
+    {
+        BotAction const& cur_action = GetFirstActionInQueue();
+        if (cur_action.GetTimeout() <= now)
+        {
+            if (DEBUG_BOT_ACTIONS)
+                BOT_LOG_DEBUG("npcbots", "bot_ai::_processQueuedActions: {} front action (type {}) expired...", me->GetName(), static_cast<uint32>(cur_action._type));
+            CancelAction(cur_action);
+        }
+        else if (cur_action._type == NpcBotActionTypes::BOT_ACTION_PULL && (!HasRole(NPC_BOT_ROLE_DPS) || me->IsInCombat() || !me->getAttackers().empty()))
+            CompleteAction(cur_action);
         else
             break;
     }
 
-    if (_orders.empty())
+    if (!HasQueuedActions())
         return;
+
+    //actionsTimer = BOT_ACTION_RETRY_DELAYS[static_cast<std::size_t>(GetFirstActionInQueue()._type)];
 
     if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER))
         return;
@@ -16935,18 +17048,22 @@ void bot_ai::_ProcessOrders()
     if (JumpingOrFalling())
         return;
 
-    BotOrder const& order = _orders.front();
+    BotAction const& action = GetFirstActionInQueue();
+
+    if (action._exec_point > now)
+        return;
+
     Unit* target = nullptr;
-    switch (order._type)
+    switch (action._type)
     {
-        case BOT_ORDER_SPELLCAST:
+        case NpcBotActionTypes::BOT_ACTION_SPELLCAST:
         {
             if (CCed(me))
                 break;
 
             SetBotCommandState(BOT_COMMAND_ISSUED_ORDER);
 
-            ObjectGuid guid(order.params.spellCastParams.targetGuid);
+            ObjectGuid guid = action.params.spell_cast_params.target_guid;
             if (guid == me->GetGUID())
                 target = me;
             else if (guid == master->GetGUID())
@@ -16960,25 +17077,84 @@ void bot_ai::_ProcessOrders()
             }
             else
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid spellCastParams.targetGuid {}!", ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
-                CancelOrder(order);
+                if (DEBUG_BOT_ACTIONS)
+                    BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: invalid spell_cast_params.target_guid {}!", guid.ToString());
+                CancelAction(action);
                 return;
             }
 
             if (!target || !target->IsInWorld())
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!",  ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
-                CancelOrder(order);
+                if (DEBUG_BOT_ACTIONS)
+                    BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: target {} not found!", guid.ToString());
+                CancelAction(action);
                 return;
             }
 
-            if (IsCasting())
+            const bool is_target_casting = IsCasting(target);
+            uint32 spell_id = 0;
+            if (BotSpell* bs = _spells[action.params.spell_cast_params.base_spell])
+                spell_id = bs->spellId;
+            else
+            {
+                CancelAction(action);
+                return;
+            }
+
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spell_id);
+
+            if (spellInfo->HasEffect(SPELL_EFFECT_INTERRUPT_CAST) ||
+                (spellInfo->HasEffect(SPELL_EFFECT_APPLY_AURA) && spellInfo->GetEffect(EFFECT_0).ApplyAuraName == SPELL_AURA_MOD_SILENCE))
+            {
+                if (!target->IsAlive())
+                {
+                    CancelAction(action);
+                    return;
+                }
+
+                if (spellInfo->GetMaxRange() <= 5.0f && !me->IsWithinMeleeRange(target))
+                    return;
+
+                if (!is_target_casting)
+                {
+                    if (!IAmFree())
+                    {
+                        CancelAction(action);
+                        return;
+                    }
+                    //if (target->GetLastSpellGoTime() + BotMilliseconds(BOT_ACTION_MAX_AFTERCAST_INTERRUPT_TIME_MS) <= now)
+                    {
+                        if (DEBUG_BOT_ACTIONS)
+                            BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: {} -> {} SPELLCAST juke timer reached!", me->GetName(), target->GetName());
+                        CancelAction(action);
+                        return;
+                    }
+                    if (urand(0, 100) > 50)
+                    {
+                        if (DEBUG_BOT_ACTIONS)
+                            BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions<interrupt_silence>: {} -> {} is no longer casting!", me->GetName(), target->GetName());
+                        return; // try next tick
+                    }
+                }
+            }
+
+            if (action.params.spell_cast_params.interrupt_self && IsCasting())
                 me->InterruptNonMeleeSpells(false);
 
-            doCast(target, _spells[order.params.spellCastParams.baseSpell]->spellId);
+            if (doCast(target, spell_id))
+                CompleteAction(action);
+            else
+            {
+                const bool cancel_now = action.GetTimeout() > now + 1000ms;
+                if (DEBUG_BOT_ACTIONS)
+                    BOT_LOG_ERROR("entities.player", "bot_ai:_processQueuedActions: {} -> {} spell cast of {} failed{}!",
+                        me->GetName(), target->GetName(), spell_id, cancel_now ? ", cancelled" : "");
+                if (cancel_now)
+                    CancelAction(action);
+            }
             break;
         }
-        case BOT_ORDER_PULL:
+        case NpcBotActionTypes::BOT_ACTION_PULL:
         {
             if (me->GetVictim())
                 break;
@@ -16987,60 +17163,38 @@ void bot_ai::_ProcessOrders()
 
             SetBotCommandState(BOT_COMMAND_ISSUED_ORDER);
 
-            if (order.params.pullParams.targetGuid)
-                target = ObjectAccessor::GetUnit(*me, ObjectGuid(order.params.pullParams.targetGuid));
+            ObjectGuid guid = action.params.pull_params.target_guid;
+            if (!guid.IsEmpty())
+                target = ObjectAccessor::GetUnit(*me, guid);
             else
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid pullParams.targetGuid {}!", order.params.pullParams.targetGuid);
-                CancelOrder(order);
+                if (DEBUG_BOT_ACTIONS)
+                    BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: invalid pull_params.target_guid {}!", guid.ToString());
+                CancelAction(action);
                 return;
             }
 
             if (!target || !target->IsInWorld())
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!", order.params.pullParams.targetGuid);
-                CancelOrder(order);
+                if (DEBUG_BOT_ACTIONS)
+                    BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: target {} not found!", guid.ToString());
+                CancelAction(action);
                 return;
             }
             if (!target->IsAlive() || target->IsInCombat() || !CanBotAttack(target))
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} cannot be pulled!", order.params.pullParams.targetGuid);
-                CancelOrder(order);
+                if (DEBUG_BOT_ACTIONS)
+                    BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: target {} cannot be pulled!", guid.ToString());
+                CancelAction(action);
                 return;
             }
             break;
         }
         default:
-            BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid order type {}!", uint32(order._type));
-            CancelOrder(order);
+            BOT_LOG_ERROR("scripts", "bot_ai:_processQueuedActions: invalid action type {}!", uint32(action._type));
+            CancelAction(action);
             return;
     }
-}
-bool bot_ai::IsLastOrder(BotOrderTypes order_type, uint32 param1, ObjectGuid guidparam1) const
-{
-    if (!_orders.empty())
-    {
-        BotOrder const& order = _orders.front();
-        if (order_type == order._type)
-        {
-            switch (order_type)
-            {
-                case BOT_ORDER_SPELLCAST:
-                    if (!param1 || order.params.spellCastParams.baseSpell == param1)
-                        return true;
-                    break;
-                case BOT_ORDER_PULL:
-                    if (!guidparam1 || order.params.pullParams.targetGuid == guidparam1.GetRawValue())
-                        return true;
-                    break;
-                default:
-                    BOT_LOG_ERROR("scripts", "bot_ai:IsLastOrder: invalid order type {}!", uint32(order_type));
-                    break;
-            }
-        }
-    }
-
-    return false;
 }
 //VEHICLES
 //helpers
@@ -17668,7 +17822,7 @@ void bot_ai::DoGenericVehicleStrats(uint32 diff)
     if (!CheckVehicleAttackTarget(curVehStrat))
         return;
 }
-void bot_ai::DoVehicleStrats(BotVehicleStrats strat, uint32 diff)
+void bot_ai::DoVehicleStrats(NpcBotVehicleStrats strat, uint32 diff)
 {
     if (curVehStrat != strat)
     {
@@ -17722,7 +17876,7 @@ void bot_ai::DoVehicleActions(uint32 diff)
         return;
 
     //choose strat
-    BotVehicleStrats strat;
+    NpcBotVehicleStrats strat;
     switch (me->GetVehicleBase()->GetEntry())
     {
         case CREATURE_NEXUS_SKYTALON_1:
@@ -17777,7 +17931,7 @@ void bot_ai::DoVehicleActions(uint32 diff)
 
     DoVehicleStrats(strat, diff);
 }
-bool bot_ai::CheckVehicleAttackTarget(BotVehicleStrats strat)
+bool bot_ai::CheckVehicleAttackTarget(NpcBotVehicleStrats strat)
 {
     opponent = _getVehicleTarget(strat);
 
@@ -18103,7 +18257,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         SendUpdateToOutOfRangeBotGroupMembers();
 
     if (ordersTimer <= diff)
-        _ProcessOrders();
+        _processQueuedActions();
 
     //if (me->HasInvisibilityAura() || me->HasStealthAura())
     //    return false;
@@ -19278,6 +19432,7 @@ bool bot_ai::FinishTeleport(bool reset)
             iscr->OnNPCBotEnter(me);
 
         SetIsDuringTeleport(false);
+        CancelAllActions(); // ensure BOT_COMMAND_ISSUED_ORDER is cleared after any teleport
     });
 
     return true;
@@ -21156,6 +21311,13 @@ uint8 bot_ai::GetManaPCT(Unit const* u)
 MeleeHitOutcome bot_ai::GetNextAttackMeleeOutCome() const
 {
     return MELEE_HIT_CRUSHING;
+}
+
+void bot_ai::Reset()
+{
+    me->ClearUnitState(UNIT_STATE_CASTING);
+    me->InterruptNonMeleeSpells(false);
+    ResetBotAI(BOTAI_RESET_INIT);
 }
 
 uint8 bot_ai::GetBotStance() const

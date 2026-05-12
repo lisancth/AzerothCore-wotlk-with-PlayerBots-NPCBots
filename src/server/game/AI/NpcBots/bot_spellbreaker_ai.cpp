@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "bot_GridNotifiers.h"
 #include "botspell.h"
 #include "Creature.h"

@@ -1,3 +1,4 @@
+#include "botmgr.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
 #include "bot_ai.h"
@@ -5,7 +6,6 @@
 #include "botdatamgr.h"
 #include "botdpstracker.h"
 #include "botlog.h"
-#include "botmgr.h"
 #include "botspell.h"
 #include "bottext.h"
 #include "bpet_ai.h"
@@ -1491,6 +1491,7 @@ void BotMgr::_reviveBot(Creature* bot, WorldLocation* dest)
     bot->Motion_Initialize();
     bot->setDeathState(DeathState::Alive);
     //bot->GetBotAI()->Reset();
+    bot->GetBotAI()->CancelAllActions(); // clear stale BOT_COMMAND_ISSUED_ORDER and action queue after revival
     bot->RefreshSwimmingFlag();
     bot->GetBotAI()->SetShouldUpdateStats();
 
@@ -2331,16 +2332,16 @@ uint8 BotMgr::GetBotEquipmentClass(uint8 bot_class)
     return BotMgr::GetBotPlayerClass(bot_class);
 }
 
-BotStatMods BotMgr::GetBotStatModByUnitStat(Stats stat)
+NpcBotStatMods BotMgr::GetBotStatModByUnitStat(Stats stat)
 {
-    BotStatMods bot_stat;
+    NpcBotStatMods bot_stat;
     switch (stat)
     {
-        case STAT_STRENGTH:  bot_stat = BotStatMods::BOT_STAT_MOD_STRENGTH;  break;
-        case STAT_AGILITY:   bot_stat = BotStatMods::BOT_STAT_MOD_AGILITY;   break;
-        case STAT_STAMINA:   bot_stat = BotStatMods::BOT_STAT_MOD_STAMINA;   break;
-        case STAT_INTELLECT: bot_stat = BotStatMods::BOT_STAT_MOD_INTELLECT; break;
-        case STAT_SPIRIT:    bot_stat = BotStatMods::BOT_STAT_MOD_SPIRIT;    break;
+        case STAT_STRENGTH:  bot_stat = NpcBotStatMods::BOT_STAT_MOD_STRENGTH;  break;
+        case STAT_AGILITY:   bot_stat = NpcBotStatMods::BOT_STAT_MOD_AGILITY;   break;
+        case STAT_STAMINA:   bot_stat = NpcBotStatMods::BOT_STAT_MOD_STAMINA;   break;
+        case STAT_INTELLECT: bot_stat = NpcBotStatMods::BOT_STAT_MOD_INTELLECT; break;
+        case STAT_SPIRIT:    bot_stat = NpcBotStatMods::BOT_STAT_MOD_SPIRIT;    break;
         default: //should not happen
             bot_stat = BOT_STAT_MOD_HEALTH;
             break;
@@ -3208,7 +3209,7 @@ float BotMgr::GetBotDamageTakenMod(Creature const* bot, bool magic)
     return bot->GetBotAI()->GetBotDamageTakenMod(magic);
 }
 
-int32 BotMgr::GetBotStat(Creature const* bot, BotStatMods stat)
+int32 BotMgr::GetBotStat(Creature const* bot, NpcBotStatMods stat)
 {
     return bot->GetBotAI()->GetTotalBotStat(stat);
 }

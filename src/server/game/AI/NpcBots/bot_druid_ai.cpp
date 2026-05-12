@@ -245,6 +245,8 @@ public:
         {
             _botclass = BOT_CLASS_DRUID;
 
+            manatimer = 2000;
+
             InitUnitFlags();
         }
 
@@ -531,6 +533,18 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            if (me->GetShapeshiftForm() == FORM_NONE)
+            {
+                if (_form != BOT_STANCE_NONE)
+                {
+                    removeShapeshiftForm();
+                }
+                else if (me->GetPowerType() != POWER_MANA)
+                {
+                    me->SetPowerType(POWER_MANA);
+                }
+            }
+
             if (me->GetPowerType() == POWER_RAGE && me->IsAlive())
             {
                 if (ragetimer <= diff)
@@ -550,6 +564,24 @@ public:
             }
             else if (me->GetPowerType() == POWER_ENERGY)
                 getenergy();
+
+            if (me->GetPowerType() != POWER_MANA && me->IsAlive())
+            {
+                if (manatimer <= diff)
+                {
+                    uint32 maxmana = me->GetMaxPower(POWER_MANA);
+                    if (me->GetPower(POWER_MANA) < maxmana)
+                    {
+                        uint32 add = 5 + maxmana / 64; // base regen
+                        if (!me->IsInCombat())
+                            add *= 2;
+                        me->ModifyPower(POWER_MANA, int32(add));
+                    }
+                    manatimer = 2000;
+                }
+                else
+                    manatimer -= diff;
+            }
 
             if (!GlobalUpdate(diff))
                 return;
@@ -2630,7 +2662,7 @@ public:
             for (uint8 i = 0; i != MAX_TREANTS; ++i)
                 _treants[i] = ObjectGuid::Empty;
 
-            //_form = BOT_STANCE_NONE;
+            _form = BOT_STANCE_NONE;
             rage = 0;
             removeShapeshiftForm();
 
@@ -2987,6 +3019,7 @@ public:
         bool hibery;
         uint32 hiberyCheckTimer;
 /*Misc*/int32 rage, energy;
+        uint32 manatimer;
 
         typedef std::unordered_map<uint32 /*baseId*/, int32 /*amount*/> HealMap;
         HealMap _heals;

@@ -1,4 +1,4 @@
-#ifndef _BOTSPELL_H
+﻿#ifndef _BOTSPELL_H
 #define _BOTSPELL_H
 
 #include "Define.h"

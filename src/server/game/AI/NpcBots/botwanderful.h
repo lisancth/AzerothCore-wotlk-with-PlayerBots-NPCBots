@@ -1,4 +1,4 @@
-#ifndef BOTWANDERFUL_H_
+﻿#ifndef BOTWANDERFUL_H_
 #define BOTWANDERFUL_H_
 
 #include "Position.h"

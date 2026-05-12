@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botmgr.h"
 #include "botspell.h"
 #include "bottraits.h"
@@ -223,16 +223,15 @@ public:
 
         void Counter(uint32 diff)
         {
-            //skip if evocation, blizzard
-            if (IsChanneling() || Rand() > 30)
+            //skip if evocation, blizzard, or already queued
+            if (IsChanneling() || HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, COUNTERSPELL_1))
                 return;
 
             if (IsSpellReady(COUNTERSPELL_1, diff, false))
             {
                 if (Unit* target = FindCastingTarget(CalcSpellMaxRange(COUNTERSPELL_1), 0, COUNTERSPELL_1))
                 {
-                    me->InterruptNonMeleeSpells(false);
-                    if (doCast(target, GetSpell(COUNTERSPELL_1)))
+                    if (EnqueueCounterSpellAction(target->GetGUID(), COUNTERSPELL_1, true))
                         return;
                 }
             }

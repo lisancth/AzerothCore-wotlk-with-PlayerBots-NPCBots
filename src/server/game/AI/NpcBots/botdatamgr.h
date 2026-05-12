@@ -1,4 +1,4 @@
-#ifndef _BOTDATAMGR_H
+﻿#ifndef _BOTDATAMGR_H
 #define _BOTDATAMGR_H
 
 #include "botcommon.h"

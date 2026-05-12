@@ -1,4 +1,4 @@
-#ifndef BOTTEXT_H
+﻿#ifndef BOTTEXT_H
 #define BOTTEXT_H
 
 #include "Define.h"

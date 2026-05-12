@@ -1,4 +1,4 @@
-#ifndef BOT_TRAITS_H
+﻿#ifndef BOT_TRAITS_H
 #define BOT_TRAITS_H
 
 #include "botcommon.h"

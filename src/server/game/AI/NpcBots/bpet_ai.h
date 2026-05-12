@@ -1,4 +1,4 @@
-#ifndef _BOT_PET_AI_H
+﻿#ifndef _BOT_PET_AI_H
 #define _BOT_PET_AI_H
 
 #include "botcommon.h"

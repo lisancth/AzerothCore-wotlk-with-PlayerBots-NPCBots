@@ -1,7 +1,7 @@
+﻿#include "botlog.h"
 #include "bot_ai.h"
 #include "botdatamgr.h"
 #include "botmgr.h"
-#include "botlog.h"
 #include "Creature.h"
 #include "DatabaseEnvFwd.h"
 #include "Log.h"

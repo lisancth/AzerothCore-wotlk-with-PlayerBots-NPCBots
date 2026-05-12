@@ -1,10 +1,24 @@
 #ifndef _BOTCOMMON_H
 #define _BOTCOMMON_H
 
+#ifdef _MSC_VER
+#undef VER_COMPANYNAME_STR
+#undef VER_PRODUCTVERSION
+#undef VER_PRODUCTVERSION_STR
+#undef VER_FILEVERSION
+#undef VER_FILEVERSION_STR
+#endif
+
 #include "botdefine.h"
 #include "ObjectGuid.h"
 #include "SharedDefines.h"
 #include "SpellAuraDefines.h"
+
+#ifndef DEFAULT_MAX_LEVEL
+# define DEFAULT_MAX_LEVEL 100
+#endif
+#undef BRACKETS_COUNT
+#define BRACKETS_COUNT (DEFAULT_MAX_LEVEL / 10 + 1)
 
 #include <utility>
 #include <vector>
@@ -487,7 +501,7 @@ enum class BotEquipResult : uint8
     BOT_EQUIP_RESULT_FAIL_ITEM_CONFLICT         = 11,
 };
 
-enum BotStatMods: uint8
+enum NpcBotStatMods: uint8
 {
     //ItemProtoType.h
     BOT_STAT_MOD_MANA                       = 0,
@@ -563,7 +577,7 @@ enum BotAIResetType
     BOTAI_RESET_MASK_RESET_MASTER       = (BOTAI_RESET_INIT | BOTAI_RESET_DISMISS | BOTAI_RESET_UNBIND | BOTAI_RESET_LOGOUT)
 };
 
-enum BotMovementType
+enum NpcBotMovementType
 {
     BOT_MOVE_POINT                      = 1,
     BOT_MOVE_CHASE,
@@ -601,18 +615,24 @@ constexpr size_t MAX_SEND_POINTS = 5u;
 #define FROM_ARRAY(arr) arr, arr + sizeof(arr) / sizeof(arr[0])
 
 //Only non-persistent types are allowed
-enum BotOrderTypes
+enum class NpcBotActionTypes
 {
-    BOT_ORDER_NONE          = 0,
-    BOT_ORDER_SPELLCAST     = 1,
-    BOT_ORDER_PULL          = 2,
+    BOT_ACTION_SPELLCAST,
+    BOT_ACTION_PULL,
 
-    BOT_ORDER_END
+    BOT_ACTIONS_COUNT
 };
-constexpr bool DEBUG_BOT_ORDERS = false;
-constexpr size_t MAX_BOT_ORDERS_QUEUE_SIZE = 3u;
 
-enum BotVehicleStrats
+inline constexpr bool DEBUG_BOT_ACTIONS = false;
+inline constexpr std::size_t MAX_BOT_ORDERS_QUEUE_SIZE = 3u;
+inline constexpr std::size_t MAX_BOT_ACTIONS_QUEUE_SIZE = 5u;
+
+inline constexpr std::pair<uint32, uint32> BOT_ACTION_COUNTERSPELL_DELAY_RANGE{ 150, 900 };
+static_assert(BOT_ACTION_COUNTERSPELL_DELAY_RANGE.first < BOT_ACTION_COUNTERSPELL_DELAY_RANGE.second);
+inline constexpr uint32 BOT_ACTION_MAX_AFTERCAST_INTERRUPT_TIME_MS = 300;
+inline constexpr uint32 BOT_ACTION_COUNTERCAST_TIME_WINDOW_EXTENSION_MS = 800;
+
+enum NpcBotVehicleStrats
 {
     BOT_VEH_STRAT_NONE,
     BOT_VEH_STRAT_WYRMREST_SKYTALON,
@@ -626,5 +646,7 @@ enum BotVehicleStrats
 
     BOT_VEH_STRAT_GENERIC
 };
+
+extern uint8 GroupIconsFlags[];
 
 #endif

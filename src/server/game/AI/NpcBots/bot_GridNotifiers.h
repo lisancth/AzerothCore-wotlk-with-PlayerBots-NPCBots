@@ -1,4 +1,4 @@
-#ifndef _BOT_GRIDNOTIFIERS_H
+﻿#ifndef _BOT_GRIDNOTIFIERS_H
 #define _BOT_GRIDNOTIFIERS_H
 
 #include "bot_ai.h"

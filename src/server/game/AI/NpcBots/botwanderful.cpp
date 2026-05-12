@@ -1,5 +1,5 @@
+﻿#include "botwanderful.h"
 #include "botdefine.h"
-#include "botwanderful.h"
 #include "DBCStores.h"
 #include "SpellAuras.h"
 #include "StringConvert.h"

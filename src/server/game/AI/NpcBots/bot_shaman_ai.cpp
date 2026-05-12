@@ -905,13 +905,12 @@ public:
 
         void Counter(uint32 diff)
         {
-            if (!IsSpellReady(WIND_SHEAR_1, diff, false) || (HasRole(NPC_BOT_ROLE_HEAL) && IsCasting()) || Rand() > 40)
+            if (!IsSpellReady(WIND_SHEAR_1, diff, false) || (HasRole(NPC_BOT_ROLE_HEAL) && IsCasting()) || HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, WIND_SHEAR_1))
                 return;
 
             if (Unit* target = FindCastingTarget(CalcSpellMaxRange(WIND_SHEAR_1), 0, WIND_SHEAR_1))
             {
-                me->InterruptNonMeleeSpells(false);
-                if (doCast(target, GetSpell(WIND_SHEAR_1)))
+                if (EnqueueCounterSpellAction(target->GetGUID(), WIND_SHEAR_1, !HasRole(NPC_BOT_ROLE_HEAL)))
                     return;
             }
         }

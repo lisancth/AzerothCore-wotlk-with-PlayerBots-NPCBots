@@ -778,7 +778,7 @@ namespace lfg
 
                                 if (/*Creature* bot = */ObjectAccessor::GetCreature(*plrg, itr->first))
                                 {
-                                    //if (!(bot->GetBotRoles() & ( 1 | 2 | 4 ))) //(BOT_ROLE_TANK | BOT_ROLE_DPS | BOT_ROLE_HEAL)
+                                    //if (!(bot->GetBotRoles() & ( 1 | 2 | 4 ))) //(NPC_BOT_ROLE_TANK | NPC_BOT_ROLE_DPS | NPC_BOT_ROLE_HEAL)
                                     //{
                                     //    //no valid roles - reqs are not met
                                     //    (ChatHandler(plrg->GetSession())).PSendSysMessage("Your bot {} does not have any viable roles assigned.", bot->GetName());

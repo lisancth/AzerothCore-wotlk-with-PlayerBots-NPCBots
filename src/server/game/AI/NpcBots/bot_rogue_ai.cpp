@@ -1,4 +1,4 @@
-#include "bot_ai.h"
+﻿#include "bot_ai.h"
 #include "botmgr.h"
 #include "bottext.h"
 #include "bottraits.h"
@@ -364,11 +364,12 @@ public:
                 {}
             }
             //Kick
-            if (IsSpellReady(KICK_1, diff, false) && !stealthed && dist <= 5 && Rand() < 70 &&
-                energy >= ecost(KICK_1) && mytar->IsNonMeleeSpellCast(false,false,true))
+            if (IsSpellReady(KICK_1, diff, false) && !stealthed && dist <= 5 &&
+                energy >= ecost(KICK_1) && !HasQueuedAction(NpcBotActionTypes::BOT_ACTION_SPELLCAST, ObjectGuid::Empty, KICK_1) &&
+                mytar->IsNonMeleeSpellCast(false, false, true))
             {
-                if (doCast(mytar, GetSpell(KICK_1)))
-                    getenergy();
+                if (EnqueueCounterSpellAction(mytar->GetGUID(), KICK_1, true))
+                    return;
             }
             //Killing Spree
             if (IsSpellReady(KILLING_SPREE_1, diff) && !stealthed && !shadowdance && HasRole(NPC_BOT_ROLE_DPS) &&

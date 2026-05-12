@@ -963,6 +963,11 @@ public:
             if (!GlobalUpdate(diff))
                 return;
 
+            if (me->GetPowerType() != POWER_MANA && me->IsAlive())
+            {
+                me->SetPowerType(POWER_MANA);
+            }
+
             DoVehicleActions(diff);
             if (!CanBotAttackOnVehicle())
                 return;

@@ -15103,12 +15103,18 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    //Set race, class and power type bytes
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
+    uint8 race = _botExtras->race;
+    uint8 spoofRace = race;
+    //Client UI (especially TargetFrame) fails to render resource bars if the race ID is unknown (>11).
+    //We spoof to Night Elf (Alliance) or Blood Elf (Horde) as they have better portrait compatibility for custom models.
+    if (race > 11)
+        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_NIGHTELF) : uint8(RACE_BLOODELF);
+
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 3, me->GetPowerType());
 
-    //Ensure player-controlled flag is set to force player-like UI (mana bar, class icons, correct portraits)
+    //The player-controlled flag is also helpful for some UI elements
     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
 }
 

@@ -531,6 +531,14 @@ public:
             }
         }
 
+        void UpdateDeadAI(uint32 diff) override
+        {
+            if (me->GetShapeshiftForm() == FORM_NONE && me->GetPowerType() != POWER_MANA)
+                me->SetPowerType(POWER_MANA);
+
+            bot_ai::UpdateDeadAI(diff);
+        }
+
         void UpdateAI(uint32 diff) override
         {
             if (me->GetShapeshiftForm() == FORM_NONE)
@@ -544,6 +552,9 @@ public:
                     me->SetPowerType(POWER_MANA);
                 }
             }
+
+            if (!GlobalUpdate(diff))
+                return;
 
             if (me->GetPowerType() == POWER_RAGE && me->IsAlive())
             {
@@ -582,9 +593,6 @@ public:
                 else
                     manatimer -= diff;
             }
-
-            if (!GlobalUpdate(diff))
-                return;
 
             DoVehicleActions(diff);
             if (!CanBotAttackOnVehicle())

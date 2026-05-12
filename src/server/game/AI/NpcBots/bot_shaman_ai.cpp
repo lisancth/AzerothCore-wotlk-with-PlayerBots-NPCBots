@@ -1289,7 +1289,7 @@ public:
 
         void CheckEarthShield(uint32 diff)
         {
-            if (!IsSpellReady(EARTH_SHIELD_1, diff) || Earthy == true || Rand() > (65 - 45 * me->IsInCombat()))
+            if (!IsSpellReady(EARTH_SHIELD_1, diff) || Earthy == true)
                 return;
 
             static const auto can_affect = [](WorldObject const* o, Unit const* unit)
@@ -1336,7 +1336,7 @@ public:
                 }
             }
 
-            if (!IAmFree() && can_affect(me, master) && doCast(master, GetSpell(EARTH_SHIELD_1)))
+            if (!IAmFree() && can_affect(me, master) && (Rand() < 15 || !master->GetAuraEffect(SPELL_AURA_REDUCE_PUSHBACK, SPELLFAMILY_SHAMAN, 0x0, 0x400, 0x0)) && doCast(master, GetSpell(EARTH_SHIELD_1)))
                 return;
         }
 
@@ -1407,24 +1407,26 @@ public:
             if (IsCasting()) return false;
 
             //Healing Wave (Big Heal)
+            bool hasTidalWaves = me->HasAura(TIDAL_WAVES_BUFF);
             if (IsSpellReady(HEALING_WAVE_1, diff) &&
                 (xppct >= 10 || !GetSpell(LESSER_HEALING_WAVE_1)) && 
-                (xphploss > _heals[HEALING_WAVE_1] || (hp < 60 && tanking) || hp < 35))
+                (xphploss > _heals[HEALING_WAVE_1] || (hp < 65 && tanking) || hp < 40 || (hasTidalWaves && hp < 75 && tanking)))
             {
                 if (doCast(target, GetSpell(HEALING_WAVE_1)))
                     return true;
             }
 
             //Riptide (Instant + HoT + Tidal Waves proc)
-            if (IsSpellReady(RIPTIDE_1, diff) && hp <= 92 && (tanking || hps < 0 || xphploss > _heals[RIPTIDE_1]) &&
+            if (IsSpellReady(RIPTIDE_1, diff) && hp <= 95 && (tanking || hps < 0 || xphploss > _heals[RIPTIDE_1]) &&
                 !target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_SHAMAN, 0x0, 0x0, 0x10, me->GetGUID()))
             {
                 if (doCast(target, GetSpell(RIPTIDE_1)))
                     return true;
             }
 
-            //Chain Heal (Group Heal)
-            if (IsSpellReady(CHAIN_HEAL_1, diff) && !IAmFree() && xppct > 30 && xphploss > _heals[CHAIN_HEAL_1] &&
+            //Chain Heal (Group Heal - Proactive)
+            if (IsSpellReady(CHAIN_HEAL_1, diff) && !IAmFree() && xppct > 25 &&
+                (xphploss > _heals[CHAIN_HEAL_1] || (hp < 85 && !tanking && Rand() < 50)) &&
                 (!tanking || Rand() < 60 || target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_SHAMAN, 0x0, 0x0, 0x10, me->GetGUID())))
             {
                 if (doCast(target, GetSpell(CHAIN_HEAL_1)))
@@ -1432,7 +1434,7 @@ public:
             }
 
             //Lesser Healing Wave (Fast Heal)
-            if (IsSpellReady(LESSER_HEALING_WAVE_1, diff) && (xphploss > _heals[LESSER_HEALING_WAVE_1] || hp < 85))
+            if (IsSpellReady(LESSER_HEALING_WAVE_1, diff) && (xphploss > _heals[LESSER_HEALING_WAVE_1] || hp < 88))
             {
                 if (doCast(target, GetSpell(LESSER_HEALING_WAVE_1)))
                     return true;

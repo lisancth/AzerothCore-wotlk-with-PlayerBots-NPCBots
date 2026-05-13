@@ -15104,10 +15104,8 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    //Universal Spoofing is MANDATORY for this client to show mana bars.
-    uint8 spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
-
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
+    //Use REAL race as requested.
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
     me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
@@ -15115,7 +15113,7 @@ void bot_ai::InitRace()
     //Force player-controlled flag to ensure mana bars and class icons are shown
     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
 
-    //Fix portrait camera (use actual model but refresh for the spoofed race)
+    //Refresh display to ensure the portrait camera is correctly aligned with the real race
     me->SetDisplayId(me->GetDisplayId());
 }
 

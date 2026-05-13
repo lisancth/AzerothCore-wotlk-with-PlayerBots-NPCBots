@@ -15103,19 +15103,7 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    uint8 race = _botExtras->race;
-    uint8 spoofRace = race;
-    //Only Human (1) and Orc (2) seem to work for resource bars on this client.
-    if (race > 11)
-        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
-
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
-
-    //Flag to help with UI rendering
-    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
-
-    //CRITICAL: Force re-render of portrait camera
-    me->SetDisplayId(me->GetDisplayId());
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
 }
 
 void bot_ai::InitOwner()

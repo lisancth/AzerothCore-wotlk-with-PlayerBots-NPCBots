@@ -642,6 +642,7 @@ void bot_ai::ResetBotAI(uint8 resetType)
         ResetContestedPvP();
     }
     InitRace(); //Force sync of resource bars on every reset/teleport
+    InitPowers();
 }
 
 bool bot_ai::_checkImmunities(Unit const* target, SpellInfo const* spellInfo) const
@@ -15103,12 +15104,19 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
+    //Universal Spoofing is MANDATORY for this client to show mana bars.
+    uint8 spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
+
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
     me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
 
     //Force player-controlled flag to ensure mana bars and class icons are shown
     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+
+    //Fix portrait camera (use actual model but refresh for the spoofed race)
+    me->SetDisplayId(me->GetDisplayId());
 }
 
 void bot_ai::InitOwner()

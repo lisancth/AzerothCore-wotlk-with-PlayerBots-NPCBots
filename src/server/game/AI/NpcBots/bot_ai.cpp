@@ -15109,9 +15109,6 @@ void bot_ai::InitRace()
 
     //Force player-controlled flag to ensure mana bars and class icons are shown
     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
-
-    //Ensure the client receives the update immediately
-    me->ForceValuesUpdate();
 }
 
 void bot_ai::InitOwner()

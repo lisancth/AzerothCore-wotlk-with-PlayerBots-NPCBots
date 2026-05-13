@@ -15115,8 +15115,8 @@ void bot_ai::InitRace()
     
     me->SetUInt32Value(UNIT_FIELD_BYTES_0, bytes0);
 
-    // Force flags to trigger player-like UI (Icon + Mana bar)
-    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED | UNIT_FLAG_PVP_ATTACKABLE);
+    // Use standard Flag setting to ensure UI renders
+    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
 
     // Refresh display
     me->SetDisplayId(me->GetDisplayId());

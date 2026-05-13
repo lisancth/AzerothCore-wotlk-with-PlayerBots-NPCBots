@@ -15103,7 +15103,20 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race); //set race
+    uint8 race = _botExtras->race;
+    uint8 spoofRace = race;
+    //Client UI fails to render resource bars if the race ID is unknown (>11).
+    //We spoof to Draenei (Alliance) or Orc (Horde) for best UI/portrait compatibility.
+    if (race > 11)
+        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_DRAENEI) : uint8(RACE_ORC);
+
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, _botExtras->gender); //CRITICAL for correct portrait rendering
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, me->GetPowerType());
+
+    //Force re-render of portrait camera
+    me->SetDisplayId(me->GetDisplayId());
 }
 
 void bot_ai::InitOwner()

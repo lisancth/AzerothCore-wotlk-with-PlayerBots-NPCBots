@@ -15104,16 +15104,21 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    //Use REAL race as requested.
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
+    // Use REAL race.
+    uint8 race = _botExtras->race;
+    
+    // Atomic write of all 4 bytes (Race, Class, Gender, Power)
+    uint32 bytes0 = (uint32(uint8(me->GetPowerType())) << 24) | 
+                    (uint32(me->getGender()) << 16) | 
+                    (uint32(_botclass) << 8) | 
+                    uint32(race);
+    
+    me->SetUInt32Value(UNIT_FIELD_BYTES_0, bytes0);
 
-    //Force player-controlled flag to ensure mana bars and class icons are shown
-    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+    // Force flags to trigger player-like UI (Icon + Mana bar)
+    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED | UNIT_FLAG_PVP_ATTACKABLE);
 
-    //Refresh display to ensure the portrait camera is correctly aligned with the real race
+    // Refresh display
     me->SetDisplayId(me->GetDisplayId());
 }
 

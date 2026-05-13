@@ -15112,8 +15112,8 @@ void bot_ai::InitRace()
 
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, _botExtras->gender); //CRITICAL for correct portrait rendering
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, me->GetPowerType());
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender()); //Fixed: use me->getGender()
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
 
     //Force re-render of portrait camera
     me->SetDisplayId(me->GetDisplayId());

@@ -15106,14 +15106,17 @@ void bot_ai::InitRace()
     uint8 race = _botExtras->race;
     uint8 spoofRace = race;
     //Client UI fails to render resource bars if the race ID is unknown (>11).
-    //We spoof to Draenei (Alliance) or Orc (Horde) for best UI/portrait compatibility.
+    //We spoof to Night Elf (Alliance) or Blood Elf (Horde) for the best portrait/UI compatibility.
     if (race > 11)
-        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_DRAENEI) : uint8(RACE_ORC);
+        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_NIGHTELF) : uint8(RACE_BLOODELF);
 
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender()); //Fixed: use me->getGender()
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
     me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
+
+    //Force player-controlled flag to ensure mana bars and class icons are shown
+    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
 
     //Force re-render of portrait camera
     me->SetDisplayId(me->GetDisplayId());

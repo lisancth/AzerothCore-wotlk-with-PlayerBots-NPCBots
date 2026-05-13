@@ -15104,6 +15104,8 @@ void bot_ai::InitFaction()
 void bot_ai::InitRace()
 {
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
 }
 
 void bot_ai::InitOwner()

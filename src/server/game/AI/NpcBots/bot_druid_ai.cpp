@@ -2698,30 +2698,19 @@ public:
 
         void InitPowers() override
         {
-            me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
             switch (me->GetShapeshiftForm())
             {
                 case FORM_BEAR:
                 case FORM_DIREBEAR:
                     me->SetPowerType(POWER_RAGE);
-                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_RAGE);
-                    me->SetMaxPower(POWER_RAGE, uint32(me->GetMaxPower(POWER_RAGE)));
-                    me->SetPower(POWER_RAGE, uint32(me->GetMaxPower(POWER_RAGE)));
                     break;
                 case FORM_CAT:
                     me->SetPowerType(POWER_ENERGY);
-                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
-                    me->SetMaxPower(POWER_ENERGY, uint32(me->GetMaxPower(POWER_ENERGY)));
-                    me->SetPower(POWER_ENERGY, uint32(me->GetMaxPower(POWER_ENERGY)));
                     break;
                 default:
                     me->SetPowerType(POWER_MANA);
-                    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
-                    me->SetMaxPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
-                    me->SetPower(POWER_MANA, uint32(me->GetMaxPower(POWER_MANA)));
                     break;
             }
-            InitRace(); //Sync bytes
         }
 
         void InitSpells() override

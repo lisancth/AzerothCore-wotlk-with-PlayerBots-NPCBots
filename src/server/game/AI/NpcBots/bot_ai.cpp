@@ -15103,19 +15103,18 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    //Universal Spoofing: Only Human (1) and Orc (2) IDs reliably trigger the mana bar UI for NPCBots in this project.
-    //We spoof ALL bots to these IDs regardless of their real race to guarantee the resource bar display.
-    uint8 spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
+    uint8 race = _botExtras->race;
+    uint8 spoofRace = race;
+    //Only Human (1) and Orc (2) seem to work for resource bars on this client.
+    if (race > 11)
+        spoofRace = (master && master->GetTeamId() == TEAM_ALLIANCE) ? uint8(RACE_HUMAN) : uint8(RACE_ORC);
 
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, spoofRace);
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
-    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(me->GetPowerType()));
 
-    //Force player-controlled flag to ensure mana bars and class icons are shown
+    //Flag to help with UI rendering
     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
 
-    //CRITICAL: Force re-render of portrait camera to fix any distortions caused by spoofing
+    //CRITICAL: Force re-render of portrait camera
     me->SetDisplayId(me->GetDisplayId());
 }
 

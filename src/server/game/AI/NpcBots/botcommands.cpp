@@ -2143,25 +2143,7 @@ public:
             bot = owner->GetBotMgr()->GetBotByName(*bot_name);
         }
 
-        if (bot)
-        {
-            if (!bot->IsInWorld())
-            {
-                handler->PSendSysMessage("Bot {} is not found!", *bot_name);
-                return true;
-            }
-            if (!bot->IsAlive())
-            {
-                handler->PSendSysMessage("{} is dead!", bot->GetName());
-                return true;
-            }
-            if (!bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS) || bot->GetVictim() || bot->IsInCombat() || !bot->getAttackers().empty())
-            {
-                handler->PSendSysMessage("{} cannot pull target! Must be idle and have DPS role", bot->GetName());
-                return true;
-            }
-        }
-        else
+        if (!bot)
         {
             auto const& class_name = *bot_name;
             for (auto const c : class_name)
@@ -2193,6 +2175,25 @@ public:
             if (!bot)
             {
                 handler->SendSysMessage("None of {} found bots can use pull yet!", cBots.size());
+                return true;
+            }
+        }
+
+        if (bot)
+        {
+            if (!bot->IsInWorld())
+            {
+                handler->PSendSysMessage("Bot {} is not found!", *bot_name);
+                return true;
+            }
+            if (!bot->IsAlive())
+            {
+                handler->PSendSysMessage("{} is dead!", bot->GetName());
+                return true;
+            }
+            if (!(bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS | NPC_BOT_ROLE_TANK)) || bot->GetVictim() || bot->IsInCombat() || !bot->getAttackers().empty())
+            {
+                handler->PSendSysMessage("{} cannot pull target! Must be idle and have DPS or Tank role", bot->GetName());
                 return true;
             }
         }

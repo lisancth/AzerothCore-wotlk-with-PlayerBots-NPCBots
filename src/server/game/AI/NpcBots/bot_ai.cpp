@@ -192,6 +192,7 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
     _needsUISync = true;
     _uiSyncTimer = 0;
     _lastMapId = creature->GetMapId();
+    _wasAlive = creature->IsAlive();
     firstspawn = true;
     _evadeMode = false;
     _atHome = true;
@@ -18101,11 +18102,13 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     // Map change detection for UI Sync (survives LFG and teleports)
     uint32 currentMapId = me->GetMapId();
-    if (_lastMapId != currentMapId)
+    bool isAlive = me->IsAlive();
+    if (_lastMapId != currentMapId || (!_wasAlive && isAlive))
     {
         _lastMapId = currentMapId;
         _needsUISync = true;
     }
+    _wasAlive = isAlive;
 
     if (_needsUISync)
     {

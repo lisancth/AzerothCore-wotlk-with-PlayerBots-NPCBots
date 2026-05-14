@@ -758,6 +758,7 @@ class bot_ai : public CreatureAI
         bool _canAppearInWorld;
         bool _needsUISync;
         uint32 _uiSyncTimer;
+        bool _wasAlive;
         uint32 _lastMapId;
 
         //wandering bots

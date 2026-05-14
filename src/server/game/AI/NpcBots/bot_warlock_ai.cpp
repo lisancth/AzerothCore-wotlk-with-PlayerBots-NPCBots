@@ -1937,6 +1937,7 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_MANA);
+            bot_ai::InitPowers();
 
             if (botPet && botPet->GetPowerType() != POWER_MANA)
                 botPet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);

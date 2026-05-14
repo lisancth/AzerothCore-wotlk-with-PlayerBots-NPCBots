@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botmgr.h"
 #include "bottext.h"
 #include "bottraits.h"
@@ -1803,13 +1803,8 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_RUNIC_POWER);
+            bot_ai::InitPowers();
             me->SetMaxPower(POWER_RUNIC_POWER, 1300);
-            //RefreshAura(RUNIC_POWER_MASTERY);
-            //if (AuraEffect* mast = me->GetAuraEffect(RUNIC_POWER_MASTERY, 0))
-            //{
-            //    //Runic Power Mastery rank 2
-            //    mast->ChangeAmount(1300);
-            //}
 
             if (botPet && botPet->GetPowerType() != POWER_ENERGY)
                 botPet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);

@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botmgr.h"
 #include "bottext.h"
 #include "bottraits.h"
@@ -1835,11 +1835,10 @@ public:
         {
             //Hack for power
             me->SetPowerType(POWER_ENERGY);
+            bot_ai::InitPowers();
 
             if (energy)
                 me->SetPower(POWER_ENERGY, energy);
-            else
-                me->SetPower(POWER_ENERGY, me->GetMaxPower(POWER_ENERGY));
         }
 
         void InitSpells() override

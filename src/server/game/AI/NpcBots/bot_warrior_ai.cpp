@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botmgr.h"
 #include "botspell.h"
 #include "bottext.h"
@@ -1959,6 +1959,7 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_RAGE);
+            bot_ai::InitPowers();
         }
 
         void InitSpells() override

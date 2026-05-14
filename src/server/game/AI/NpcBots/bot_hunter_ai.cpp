@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botmgr.h"
 #include "botspell.h"
 #include "bottext.h"
@@ -2017,6 +2017,7 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_MANA);
+            bot_ai::InitPowers();
 
             if (botPet && botPet->GetPowerType() != POWER_FOCUS)
                 botPet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_FOCUS);

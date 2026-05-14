@@ -2698,19 +2698,23 @@ public:
 
         void InitPowers() override
         {
+            Powers ptype;
             switch (me->GetShapeshiftForm())
             {
                 case FORM_BEAR:
                 case FORM_DIREBEAR:
-                    me->SetPowerType(POWER_RAGE);
+                    ptype = POWER_RAGE;
                     break;
                 case FORM_CAT:
-                    me->SetPowerType(POWER_ENERGY);
+                    ptype = POWER_ENERGY;
                     break;
                 default:
-                    me->SetPowerType(POWER_MANA);
+                    ptype = POWER_MANA;
                     break;
             }
+
+            me->SetPowerType(ptype);
+            bot_ai::InitPowers();
         }
 
         void InitSpells() override

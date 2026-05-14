@@ -189,6 +189,9 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
     feast_health = false;
     feast_mana = false;
     spawned = false;
+    _needsUISync = true;
+    _uiSyncTimer = 0;
+    _lastMapId = creature->GetMapId();
     firstspawn = true;
     _evadeMode = false;
     _atHome = true;
@@ -641,8 +644,7 @@ void bot_ai::ResetBotAI(uint8 resetType)
         spawned = false;
         ResetContestedPvP();
     }
-    InitRace(); //Force sync of resource bars on every reset/teleport
-    InitPowers();
+    _needsUISync = true;
 }
 
 bool bot_ai::_checkImmunities(Unit const* target, SpellInfo const* spellInfo) const
@@ -14969,6 +14971,7 @@ void bot_ai::DefaultInit()
         RemoveItemClassEnchantments(); //clear rogue poisons / shaman ecnhants
         ApplyItemsSpells(); //restore item equip spells
     }
+
     else
     {
         InitRace();
@@ -14977,6 +14980,8 @@ void bot_ai::DefaultInit()
         me->SetBotAI(this);
         BotLogger::Log(NPCBOT_LOG_SPAWN, me);
     }
+
+    _needsUISync = true;
 
     me->SetPvP(master->IsPvP() || IsWanderer());
     if (sWorld->IsFFAPvPRealm())
@@ -15104,22 +15109,22 @@ void bot_ai::InitFaction()
 
 void bot_ai::InitRace()
 {
-    // Use REAL race.
-    uint8 race = _botExtras->race;
-    
-    // Atomic write of all 4 bytes (Race, Class, Gender, Power)
-    uint32 bytes0 = (uint32(uint8(me->GetPowerType())) << 24) | 
-                    (uint32(me->getGender()) << 16) | 
-                    (uint32(_botclass) << 8) | 
-                    uint32(race);
-    
-    me->SetUInt32Value(UNIT_FIELD_BYTES_0, bytes0);
+    // Sync Race, Class, Gender to ensure client knows this is a player-like entity
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
 
-    // Use standard Flag setting to ensure UI renders
+    // Flag is mandatory for UI
     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+}
 
-    // Refresh display
-    me->SetDisplayId(me->GetDisplayId());
+void bot_ai::InitPowers()
+{
+    // Common resource bar synchronization for all bot classes
+    Powers ptype = me->GetPowerType();
+    me->SetByteValue(UNIT_FIELD_BYTES_0, 3, uint8(ptype));
+    me->UpdateMaxPower(ptype);
+    me->SetPower(ptype, uint32(me->GetMaxPower(ptype)));
 }
 
 void bot_ai::InitOwner()
@@ -18093,6 +18098,34 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 {
     if (!BotMgr::IsNpcBotModEnabled() || !BotDataMgr::AllBotsLoaded())
         return false;
+
+    // Map change detection for UI Sync (survives LFG and teleports)
+    uint32 currentMapId = me->GetMapId();
+    if (_lastMapId != currentMapId)
+    {
+        _lastMapId = currentMapId;
+        _needsUISync = true;
+    }
+
+    if (_needsUISync)
+    {
+        _needsUISync = false;
+        _uiSyncTimer = 5000; // Sync for 5 seconds
+        SetStats(true);      // FORCE RECALCULATE MAX POWER/HEALTH
+    }
+
+    if (_uiSyncTimer > 0)
+    {
+        uint32 oldTimer = _uiSyncTimer;
+        _uiSyncTimer -= std::min<uint32>(_uiSyncTimer, diff);
+        
+        // Trigger sync every ~500ms or when timer ends
+        if (_uiSyncTimer == 0 || (oldTimer / 500) != (_uiSyncTimer / 500))
+        {
+            InitRace();
+            InitPowers();
+        }
+    }
 
     if (IsWanderer())
     {

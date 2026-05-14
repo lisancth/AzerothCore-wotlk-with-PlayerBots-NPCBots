@@ -521,7 +521,7 @@ class bot_ai : public CreatureAI
         virtual void ApplyClassThreatMods(SpellInfo const* /*spellInfo*/, float& /*threat*/) const {}
         virtual void ApplyClassEffectValueMultiplierMods(SpellInfo const* /*spellInfo*/, SpellEffIndex /*effIndex*/, float& /*multiplier*/) const {}
 
-        virtual void InitPowers() {}
+        virtual void InitPowers();
         virtual void InitSpells() = 0;
         virtual void ApplyClassPassives() const = 0;
         virtual void InitHeals() {}
@@ -756,6 +756,9 @@ class bot_ai : public CreatureAI
         bool _atHome;
         bool _duringTeleport;
         bool _canAppearInWorld;
+        bool _needsUISync;
+        uint32 _uiSyncTimer;
+        uint32 _lastMapId;
 
         //wandering bots
         bool _wanderer;

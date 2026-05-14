@@ -15114,9 +15114,6 @@ void bot_ai::InitRace()
     me->SetByteValue(UNIT_FIELD_BYTES_0, 0, _botExtras->race);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 1, _botclass);
     me->SetByteValue(UNIT_FIELD_BYTES_0, 2, me->getGender());
-
-    // Flag is mandatory for UI
-    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
 }
 
 void bot_ai::InitPowers()

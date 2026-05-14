@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botdatamgr.h"
 #include "botdump.h"
 #include "botgearscore.h"
@@ -2119,7 +2119,30 @@ public:
             if ((*bot_name)[i] == '_')
                 (*bot_name)[i] = ' ';
 
-        Creature* bot = owner->GetBotMgr()->GetBotByName(*bot_name);
+        Creature* bot = nullptr;
+        if (*bot_name == "tank")
+        {
+            BotMap const* bots = owner->GetBotMgr()->GetBotMap();
+            for (auto const& pair : *bots)
+            {
+                if (pair.second && pair.second->IsAlive() && pair.second->GetBotAI()->HasRole(NPC_BOT_ROLE_TANK))
+                {
+                    bot = pair.second;
+                    break;
+                }
+            }
+
+            if (!bot)
+            {
+                handler->SendSysMessage("No active tank bot found in your party!");
+                return true;
+            }
+        }
+        else
+        {
+            bot = owner->GetBotMgr()->GetBotByName(*bot_name);
+        }
+
         if (bot)
         {
             if (!bot->IsInWorld())

@@ -18093,6 +18093,7 @@ void bot_ai::UpdateDeadAI(uint32 diff)
     // soulstone
     if (GetSelfRezSpell() && !GetBG() && (IAmFree() || !master->GetBotMgr()->IsPartyInCombat(false)) && Rand() < 15)
         me->CastSpell(me, GetSelfRezSpell());
+    _wasAlive = false;
 }
 //opponent unsafe
 bool bot_ai::GlobalUpdate(uint32 diff)

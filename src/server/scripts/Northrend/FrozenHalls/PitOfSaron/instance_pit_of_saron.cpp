@@ -78,8 +78,18 @@ public:
         {
             InstanceScript::OnPlayerEnter(player);
 
-            if (Creature* c = instance->GetCreature(GetGuidData(DATA_LEADER_FIRST_GUID)))
-                c->AI()->SetData(DATA_START_INTRO, 0);
+            // Robust intro trigger: If cached GUID fails, try to find the leader by entry ID
+            Creature* leader = instance->GetCreature(GetGuidData(DATA_LEADER_FIRST_GUID));
+            if (!leader)
+            {
+                uint32 leaderEntry = (GetTeamIdInInstance() == TEAM_ALLIANCE) ? NPC_JAINA_PART1 : NPC_SYLVANAS_PART1;
+                leader = player->FindNearestCreature(leaderEntry, 150.0f);
+            }
+
+            if (leader)
+            {
+                leader->AI()->SetData(DATA_START_INTRO, 0);
+            }
         }
 
         uint32 GetCreatureEntry(ObjectGuid::LowType /*guidLow*/, CreatureData const* data) override
@@ -364,6 +374,37 @@ public:
                     return bAchievEleven;
             }
             return false;
+        }
+
+        void Update(uint32 diff) override
+        {
+            // Robust intro monitoring: check every 2 seconds if progress is still at NONE
+            if (InstanceProgress == INSTANCE_PROGRESS_NONE)
+            {
+                static uint32 checkTimer = 0;
+                checkTimer += diff;
+                if (checkTimer >= 2000)
+                {
+                    checkTimer = 0;
+                    if (instance->GetPlayersCountExceptGMs() > 0)
+                    {
+                        uint32 leaderEntry = (GetTeamIdInInstance() == TEAM_ALLIANCE) ? NPC_JAINA_PART1 : NPC_SYLVANAS_PART1;
+                        // Use the cached GUID if available, otherwise fallback to finding any creature with the entry
+                        Creature* leader = instance->GetCreature(GetGuidData(DATA_LEADER_FIRST_GUID));
+                        if (!leader)
+                        {
+                            // We can't use GetCreatureByEntry on Map, so we look at the GUID if it was set during OnCreatureCreate
+                            // The OnCreatureCreate logic sets NPC_LeaderFirstGUID, let's use that member directly
+                            leader = instance->GetCreature(NPC_LeaderFirstGUID);
+                        }
+
+                        if (leader && leader->IsAlive())
+                        {
+                            leader->AI()->SetData(DATA_START_INTRO, 0);
+                        }
+                    }
+                }
+            }
         }
 
         void ReadSaveDataMore(std::istringstream& data) override

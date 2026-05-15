@@ -18117,10 +18117,11 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     _wasAlive = isAlive;
     
     // Reconnect detection: If player session changed, force refresh everything
-    if (master)
+    // Reconnect detection: If player session changed, force refresh everything
+    if (!IAmFree() && master)
     {
         WorldSession* currentSession = master->GetSession();
-        if (_lastSession != currentSession)
+        if (currentSession && _lastSession != currentSession)
         {
             _lastSession = currentSession;
             _needsUISync = true;
@@ -18129,6 +18130,18 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             // Set stats immediately but safely
             if (me->IsInWorld())
                 SetStats(true);
+        }
+
+        // FAIL-SAFE: If a mana class bot has 0 MaxPower in an instance, force a sync
+        // This fixes the 'missing mana bar' issue in Forge of Souls / Pit of Saron
+        if (me->IsInWorld() && me->GetMap()->IsDungeon())
+        {
+            if (me->GetMaxPower(POWER_MANA) == 0 && 
+               (_botclass == BOT_CLASS_PRIEST || _botclass == BOT_CLASS_MAGE || _botclass == BOT_CLASS_WARLOCK || 
+                _botclass == BOT_CLASS_DRUID || _botclass == BOT_CLASS_SHAMAN || _botclass == BOT_CLASS_PALADIN))
+            {
+                _needsUISync = true;
+            }
         }
     }
 
@@ -18150,21 +18163,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (_needsUISync)
     {
         _needsUISync = false;
-        _uiSyncTimer = 5000; // Sync for 5 seconds
-        SetStats(true);      // FORCE RECALCULATE MAX POWER/HEALTH
-    }
-
-    if (_uiSyncTimer > 0)
-    {
-        uint32 oldTimer = _uiSyncTimer;
-        _uiSyncTimer -= std::min<uint32>(_uiSyncTimer, diff);
-        
-        // Trigger sync every ~500ms or when timer ends
-        if (_uiSyncTimer == 0 || (oldTimer / 500) != (_uiSyncTimer / 500))
-        {
-            InitRace();
-            InitPowers();
-        }
+        SetStats(true);
+        InitRace();
+        InitPowers();
     }
 
     if (IsWanderer())

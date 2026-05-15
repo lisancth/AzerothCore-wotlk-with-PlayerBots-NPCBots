@@ -124,6 +124,7 @@ class bot_ai : public CreatureAI
         bool OnGossipSelectCode(Player* player, Creature* creature, uint32 sender, uint32 action, char const* code);
 
         Creature* GetBotsPet() const { return botPet; }
+        Unit* GetTarget() const { return opponent; }
 
         void Evade();
         void GetNextEvadeMovePoint(Position& pos, bool& use_path) const;
@@ -760,6 +761,7 @@ class bot_ai : public CreatureAI
         uint32 _uiSyncTimer;
         bool _wasAlive;
         uint32 _lastMapId;
+        WorldSession* _lastSession;
 
         //wandering bots
         bool _wanderer;

@@ -192,6 +192,7 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
     _needsUISync = true;
     _uiSyncTimer = 0;
     _lastMapId = creature->GetMapId();
+    _lastSession = nullptr;
     _wasAlive = creature->IsAlive();
     firstspawn = true;
     _evadeMode = false;
@@ -18098,6 +18099,13 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (!BotMgr::IsNpcBotModEnabled() || !BotDataMgr::AllBotsLoaded())
         return false;
 
+    // Ensure bot is always interactable (restore interaction if lost during combat)
+    if (me->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED))
+    {
+        if (!me->IsCharmed() && !me->HasUnitState(UNIT_STATE_POSSESSED))
+            me->RemoveUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED);
+    }
+
     // Map change detection for UI Sync (survives LFG and teleports)
     uint32 currentMapId = me->GetMapId();
     bool isAlive = me->IsAlive();
@@ -18107,6 +18115,37 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         _needsUISync = true;
     }
     _wasAlive = isAlive;
+    
+    // Reconnect detection: If player session changed, force refresh everything
+    if (master)
+    {
+        WorldSession* currentSession = master->GetSession();
+        if (_lastSession != currentSession)
+        {
+            _lastSession = currentSession;
+            _needsUISync = true;
+            shouldUpdateStats = true;
+            
+            // Set stats immediately but safely
+            if (me->IsInWorld())
+                SetStats(true);
+        }
+    }
+
+    // Brute force fix for Drak'Tharon Keep unkillable mobs (Nuclear Option)
+    if (opponent && opponent->IsAlive())
+    {
+        uint32 entry = opponent->GetEntry();
+        if (entry == 26630 || entry == 26635 || entry == 26620)
+        {
+            if (opponent->GetHealth() < 100)
+            {
+                opponent->SetHealth(0);
+                // Correct signature: Kill(victim, attacker, durabilityLoss, attackType, spellInfo, spell)
+                opponent->Kill(opponent, me, true, BASE_ATTACK, nullptr, nullptr);
+            }
+        }
+    }
 
     if (_needsUISync)
     {

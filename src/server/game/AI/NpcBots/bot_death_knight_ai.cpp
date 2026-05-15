@@ -724,7 +724,7 @@ public:
 
             //DARK COMMAND
             if (IsSpellReady(DARK_COMMAND_1, diff, false) && u && u != me && dist < 30 &&
-                mytar->GetTypeId() == TYPEID_UNIT && !mytar->IsControlledByPlayer() && Rand() < 50 &&
+                mytar->GetTypeId() == TYPEID_UNIT && !mytar->IsControlledByPlayer() && (IsTank() || Rand() < 50) &&
                 !CCed(mytar) && !mytar->HasAuraType(SPELL_AURA_MOD_TAUNT) &&
                 (!IsTank(u) || (IsTank() && GetHealthPCT(me) > 67 &&
                 (GetHealthPCT(u) < 30 || (IsOffTank() && !IsOffTank(u) && IsPointedOffTankingTarget(mytar)) ||
@@ -833,7 +833,8 @@ public:
                 }
             }
             //ICY TOUCH
-            if (IsSpellReady(ICY_TOUCH_1, diff) && can_do_frost && !noDiseases && (!frof || frof->GetBase()->GetMaxDuration() < 3000) &&
+            if (IsSpellReady(ICY_TOUCH_1, diff) && can_do_frost && !noDiseases && 
+                (IsTank() || !frof || frof->GetBase()->GetMaxDuration() < 3000) &&
                 dist < CalcSpellMaxRange(ICY_TOUCH_1) && HaveRunes(ICY_TOUCH_1))
             {
                 if (doCast(mytar, GetSpell(ICY_TOUCH_1)))
@@ -882,16 +883,16 @@ public:
                     return;
             }
             //BLOOD BOIL
-            if (IsSpellReady(BLOOD_BOIL_1, diff) && can_do_shadow && IsTank() && Rand() < 25 && HaveRunes(BLOOD_BOIL_1))
+            if (IsSpellReady(BLOOD_BOIL_1, diff) && can_do_shadow && (IsTank() || Rand() < 25) && HaveRunes(BLOOD_BOIL_1))
             {
                 std::list<Unit*> targets;
                 GetNearbyTargetsList(targets, 9.f, 1);
-                if (targets.size() >= 4)
+                if (targets.size() >= (IsTank() ? 2 : 4))
                     if (doCast(me, GetSpell(BLOOD_BOIL_1)))
                         return;
             }
             //DEATH AND DECAY
-            if (IsSpellReady(DEATH_AND_DECAY_1, diff) && can_do_shadow && Rand() < (10 + 30 * IsTank()) && dist < 8 &&
+            if (IsSpellReady(DEATH_AND_DECAY_1, diff) && can_do_shadow && (IsTank() || Rand() < 10) && dist < 8 &&
                 HaveRunes(DEATH_AND_DECAY_1))
             {
                 if (Unit* target = FindAOETarget(10))

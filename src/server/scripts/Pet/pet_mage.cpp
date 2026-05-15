@@ -27,6 +27,7 @@
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
+#include "bot_ai.h"
 
 enum MageSpells
 {
@@ -72,7 +73,7 @@ struct npc_pet_mage_mirror_image : CasterAI
         me->m_Events.AddEventAtOffset([this]()
         {
             _delayAttack = false;
-        }, 1200ms);
+        }, 200ms);
 
         Unit* owner = me->GetOwner();
         if (!owner)
@@ -185,7 +186,12 @@ struct npc_pet_mage_mirror_image : CasterAI
         //npcbot: allow mirror images to attack creature owner's target
         else if (owner)
         {
-            if (Unit* mytar = owner->GetVictim())
+            Unit* mytar = owner->GetVictim();
+            // If victim is null, try to get the owner's current target (more reliable for Bots)
+            if (!mytar && owner->ToCreature() && owner->ToCreature()->IsNPCBot())
+                mytar = owner->ToCreature()->GetBotAI()->GetTarget();
+            
+            if (mytar)
             {
                 if (mytar != me->GetVictim() && me->IsValidAttackTarget(mytar) && CanAIAttack(mytar))
                 {
@@ -222,9 +228,10 @@ struct npc_pet_mage_mirror_image : CasterAI
 
         checktarget += diff;
 
-        if (checktarget >= 1000)
+        if (checktarget >= 200)
         {
-            if (!me->GetVictim()->IsAlive() || me->GetVictim()->HasBreakableByDamageCrowdControlAura() || !me->CanSeeOrDetect(me->GetVictim()))
+            checktarget = 0;
+            if (!me->GetVictim() || !me->GetVictim()->IsAlive() || me->GetVictim()->HasBreakableByDamageCrowdControlAura() || !me->CanSeeOrDetect(me->GetVictim()))
             {
                 MySelectNextTarget();
                 me->InterruptNonMeleeSpells(true);
@@ -232,12 +239,18 @@ struct npc_pet_mage_mirror_image : CasterAI
             }
         }
 
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
         if (uint32 spellId = events.ExecuteEvent())
         {
-            events.RescheduleEvent(spellId, spellId == 59637 ? 6500ms : 2500ms);
+            // If we are already casting, reschedule the event to check back very soon
+            // so we don't 'lose' the attack sequence and stand still.
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+            {
+                events.RescheduleEvent(spellId, 500ms);
+                return;
+            }
+
+            // Reschedule for next cast. 2000ms ensures seamless 2.5s Frostbolt casting (official behavior).
+            events.RescheduleEvent(spellId, spellId == 59637 ? 6000ms : 2000ms);
             me->CastSpell(me->GetVictim(), spellId, false);
         }
     }

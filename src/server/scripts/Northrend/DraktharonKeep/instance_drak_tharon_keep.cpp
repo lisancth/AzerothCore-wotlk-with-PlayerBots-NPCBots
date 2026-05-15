@@ -108,9 +108,26 @@ class spell_dtk_summon_random_drakkari : public SpellScript
     }
 };
 
+struct npc_resurrected_drakkari_warrior : public ScriptedAI
+{
+    npc_resurrected_drakkari_warrior(Creature* creature) : ScriptedAI(creature) {}
+
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damagetype*/, SpellSchoolMask /*damageSchoolMask*/) override
+    {
+        // Ultimate kill-switch: if health is low or would become 1, force death
+        if (damage >= me->GetHealth() || me->GetHealthPct() < 5.0f || me->GetHealth() < 100)
+        {
+            damage = me->GetHealth();
+        }
+    }
+};
+
 void AddSC_instance_drak_tharon_keep()
 {
     RegisterInstanceScript(instance_drak_tharon_keep, MAP_DRAK_THARON_KEEP);
+    RegisterCreatureAI(npc_resurrected_drakkari_warrior, NPC_RESURRECTED_DRAKKARI_WARRIOR);
+    RegisterCreatureAI(npc_resurrected_drakkari_warrior, NPC_RISEN_DRAKKARI_WARRIOR);
+    RegisterCreatureAI(npc_resurrected_drakkari_warrior, NPC_DRAKKARI_GUARDIAN);
     RegisterSpellScript(spell_dtk_raise_dead_aura);
     RegisterSpellScript(spell_dtk_summon_random_drakkari);
 }

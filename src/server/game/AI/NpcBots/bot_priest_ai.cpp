@@ -283,7 +283,8 @@ public:
 
         bool ShieldGroup(uint32 diff)
         {
-            if (!IsSpellReady(PW_SHIELD_1, false, diff) || IsCasting() || Rand() > 65 + 100 * (me->GetMap()->IsRaid()))
+            uint32 shield_check_chance = (_spec == BOT_SPEC_PRIEST_DISCIPLINE) ? 100 : 35;
+            if (!IsSpellReady(PW_SHIELD_1, false, diff) || IsCasting() || Rand() > shield_check_chance + 100 * (me->GetMap()->IsRaid()))
                 return false;
             if (!IAmFree() && !(me->GetLevel() >= 30 && _spec == BOT_SPEC_PRIEST_DISCIPLINE) &&
                 master->GetBotMgr()->HasBotWithSpec(BOT_SPEC_PRIEST_DISCIPLINE))
@@ -325,9 +326,16 @@ public:
                 {
                     for (Unit* member : members)
                     {
+                        bool isTank = IsTank(member);
+                        bool isDisc = (_spec == BOT_SPEC_PRIEST_DISCIPLINE);
+                        uint8 hp_pct = GetHealthPCT(member);
+                        uint32 mana_pct = GetManaPCT(me);
+
                         if (!(i == 0 ? member->IsPlayer() : member->IsNPCBot()) || me->GetMap() != member->FindMap() ||
                             !member->IsAlive() || me->GetDistance(member) > 40 || member->isPossessed() || member->IsCharmed() ||
-                            member->getAttackers().empty() || (!IsTank(member) && !IsFlagCarrier(member) && GetHealthPCT(member) > 75) ||
+                            member->getAttackers().empty() || 
+                            (!isTank && !IsFlagCarrier(member) && hp_pct > (isDisc ? 85 : 75)) ||
+                            (isTank && hp_pct > 98 && mana_pct < 40) || // Mana save: don't proactive shield full HP tank if mana low
                             (member->IsNPCBot() && member->ToCreature()->IsTempBot()) ||
                             member->GetAuraEffect(SPELL_AURA_DUMMY, SPELLFAMILY_PALADIN, 0x0, 0x80000, 0x0))
                             continue;
@@ -666,8 +674,9 @@ public:
             bool tanking = u && IsTank(target) && u->GetTypeId() == TYPEID_UNIT && u->ToCreature()->isWorldBoss();
 
             //Penance
-            if (IsSpellReady(PENANCE_1, diff) && !target->IsCharmed() && !target->isPossessed() && hp <= 80 &&
-                Rand() < 90 && xphploss > _heals[PENANCE_1])
+            uint8 penance_threshold = (_spec == BOT_SPEC_PRIEST_DISCIPLINE) ? 92 : 80;
+            if (IsSpellReady(PENANCE_1, diff) && !target->IsCharmed() && !target->isPossessed() && hp <= penance_threshold &&
+                Rand() < 95 && xphploss > _heals[PENANCE_1])
             {
                 if (doCast(target, GetSpell(PENANCE_1)))
                     return true;

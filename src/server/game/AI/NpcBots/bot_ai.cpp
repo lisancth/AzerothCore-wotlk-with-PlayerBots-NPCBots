@@ -18145,17 +18145,30 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         }
     }
 
-    // Brute force fix for Drak'Tharon Keep unkillable mobs (Nuclear Option)
-    if (opponent && opponent->IsAlive())
+    // Brute force fix for unkillable mobs (Nuclear Option - MULTI-MAP)
+    uint32 mapId = me->GetMapId();
+    if (mapId == 271 || mapId == 33) // Drak'Tharon Keep or Shadowfang Keep
     {
-        uint32 entry = opponent->GetEntry();
-        if (entry == 26630 || entry == 26635 || entry == 26620)
+        // Check current victim (bot's target in combat)
+        Unit* target = me->GetVictim();
+        if (!target) target = opponent; // Fallback to opponent
+
+        if (target && target->IsCreature())
         {
-            if (opponent->GetHealth() < 100)
+            uint32 entry = target->GetEntry();
+            // Drak'Tharon mobs (26630, 26635, 26620) or SFK Vincent (4444)
+            if (entry == 26630 || entry == 26635 || entry == 26620 || entry == 4444)
             {
-                opponent->SetHealth(0);
-                // Correct signature: Kill(victim, attacker, durabilityLoss, attackType, spellInfo, spell)
-                opponent->Kill(opponent, me, true, BASE_ATTACK, nullptr, nullptr);
+                // Use cast to bypass strict enum class comparison issues: 1 = JUST_DIED, 2 = DEAD
+                if (target->GetHealth() <= 50 || (static_cast<uint32>(target->getDeathState()) == 2 && target->IsInCombat()))
+                {
+                    target->RemoveAllAuras();
+                    target->CombatStop(true);
+                    target->setDeathState(static_cast<DeathState>(1));
+                    // Full signature: Kill(victim, attacker, durabilityLoss, attackType, spellInfo, spell)
+                    target->Kill(target, me, false, BASE_ATTACK, nullptr, nullptr);
+                    target->SetHealth(0);
+                }
             }
         }
     }

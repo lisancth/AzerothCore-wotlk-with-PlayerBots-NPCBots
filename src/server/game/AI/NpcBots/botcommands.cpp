@@ -293,7 +293,7 @@ private:
             case RACE_TAUREN:        return VISUALS_PRED1(RACE_TAUREN);
             case RACE_TROLL:         return VISUALS_PRED1(RACE_TROLL);
             case RACE_BLOODELF:      return VISUALS_PRED1(RACE_BLOODELF);
-            default: return false;
+            default:                 return true;
         }
 #undef VISUALS_PRED1
     }
@@ -3770,7 +3770,7 @@ public:
             return ret_err_invalid_arg(handler, "gender", gender);
 
         // class / race combination check
-        if ((*bclass < BOT_CLASS_EX_START && !sObjectMgr->GetPlayerInfo(*race, *bclass)) ||
+        if ((*bclass < BOT_CLASS_EX_START && *race <= RACE_DRAENEI && *race != RACE_GOBLIN && !sObjectMgr->GetPlayerInfo(*race, *bclass)) ||
             (*bclass == BOT_CLASS_ARCHMAGE && *race != RACE_HUMAN))
             return ret_err_invalid_args_for(handler, "class", get_class_name(*bclass));
 
@@ -3799,7 +3799,59 @@ public:
         }
 
         //get normalized modelID
-        uint32 modelId = can_change_appearance ? SoundSetModelsArray[RaceToRaceOffset[*race]][*gender][soundset ? *soundset - 1 : urand(0u, 2u)] : 0;
+        uint32 modelId = 0;
+        if (can_change_appearance)
+        {
+            if (*race <= RACE_DRAENEI && *race != RACE_GOBLIN)
+            {
+                modelId = SoundSetModelsArray[RaceToRaceOffset[*race]][*gender][soundset ? *soundset - 1 : urand(0u, 2u)];
+            }
+            else
+            {
+                switch (*race)
+                {
+                    case RACE_GOBLIN:
+                        modelId = (*gender == GENDER_MALE) ? 57674 : 57675;
+                        break;
+                    case RACE_VOIDELF:
+                        modelId = (*gender == GENDER_MALE) ? 57662 : 57663;
+                        break;
+                    case RACE_VULPERA:
+                        modelId = (*gender == GENDER_MALE) ? 57664 : 57665;
+                        break;
+                    case RACE_HIGH_ELF:
+                        modelId = (*gender == GENDER_MALE) ? 45001 : 45000;
+                        break;
+                    case RACE_PANDAREN:
+                        modelId = (*gender == GENDER_MALE) ? 57668 : 57669;
+                        break;
+                    case RACE_WOLGEN:
+                        modelId = (*gender == GENDER_MALE) ? 57676 : 57677;
+                        break;
+                    case RACE_EREDAR:
+                        modelId = (*gender == GENDER_MALE) ? 36399 : 36400;
+                        break;
+                    case RACE_FOREST_TROLL:
+                        modelId = (*gender == GENDER_MALE) ? 57658 : 57659;
+                        break;
+                    case RACE_LIGHTFORGED:
+                        modelId = (*gender == GENDER_MALE) ? 57666 : 57667;
+                        break;
+                    case RACE_DH_A:
+                        modelId = (*gender == GENDER_MALE) ? 57672 : 57673;
+                        break;
+                    case RACE_DH_H:
+                        modelId = (*gender == GENDER_MALE) ? 57670 : 57671;
+                        break;
+                    case RACE_TUSKARR:
+                        modelId = 23698;
+                        break;
+                    default:
+                        modelId = 0;
+                        break;
+                }
+            }
+        }
 
         uint32 newentry = 0;
         QueryResult creres = WorldDatabase.Query("SELECT entry FROM creature_template WHERE entry = {}", BOT_ENTRY_CREATE_BEGIN);

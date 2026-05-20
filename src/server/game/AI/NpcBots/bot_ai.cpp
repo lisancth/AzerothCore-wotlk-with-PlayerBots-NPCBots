@@ -15090,6 +15090,20 @@ void bot_ai::ApplyRacials()
             if (firstspawn)
                 InitSpellMap(RaceSpellForClass(myrace, _botclass), true, false);
             break;
+        case RACE_LIGHTFORGED:
+            RefreshAura(100254, uint8(!IAmFree())); //Light's Presence 
+            RefreshAura(100256); //Light's Path
+            if (firstspawn) {
+                InitSpellMap(100254, true, false); 
+                InitSpellMap(100256, true, false);     
+            }
+            break;
+        case RACE_EREDAR:
+            RefreshAura(100271, uint8(!IAmFree())); //Villanous Presence
+            if (firstspawn) {
+                InitSpellMap(100271, true, false); 
+            }
+            break;
         default:
             //BOT_LOG_ERROR("entities.player", "bot_ai::ApplyRacePassives(): unknown race %u for bot %s (%u)", uint32(me->GetRace()), me->GetName().c_str(), me->GetEntry());
             return;

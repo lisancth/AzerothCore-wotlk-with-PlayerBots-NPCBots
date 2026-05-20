@@ -88,7 +88,8 @@ enum Races
     RACE_FOREST_TROLL       = 18, // TITLE 赞达拉巨魔 Zandalari Troll
     RACE_LIGHTFORGED        = 19, // TITLE 光铸德莱尼  Lightforged
     RACE_DH_A               = 20, // TITLE 恶魔猎手|cff0070de|r   联盟  Deme
-    RACE_DH_H               = 21  // TITLE 恶魔猎手|cffc41f3b|r   部落
+    RACE_DH_H               = 21, // TITLE 恶魔猎手|cffc41f3b|r   部落
+    RACE_TUSKARR            = 28
 };
 
 // max+1 for player race

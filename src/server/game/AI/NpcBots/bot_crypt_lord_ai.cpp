@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botdatamgr.h"
 #include "botspell.h"
 #include "bottext.h"
@@ -698,7 +698,9 @@ public:
         void InitPowers() override
         {
             me->SetPowerType(POWER_MANA);
+            bot_ai::InitPowers();
             me->SetMaxPower(POWER_MANA, BASE_MANA_1_CRYPT_LORD);
+            me->SetPower(POWER_MANA, BASE_MANA_1_CRYPT_LORD);
         }
 
         void InitSpells() override

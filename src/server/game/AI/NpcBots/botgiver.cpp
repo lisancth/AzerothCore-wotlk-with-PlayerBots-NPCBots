@@ -1,4 +1,4 @@
-﻿#include "bot_ai.h"
+#include "bot_ai.h"
 #include "botcommon.h"
 #include "botdatamgr.h"
 #include "botgossip.h"
@@ -20,6 +20,19 @@ Complete - 100%
 #define HIRE GOSSIP_SENDER_BOTGIVER_HIRE
 #define HIRE_CLASS GOSSIP_SENDER_BOTGIVER_HIRE_CLASS
 #define HIRE_ENTRY GOSSIP_SENDER_BOTGIVER_HIRE_ENTRY
+
+#define BOT_TEXT_RACE_GOBLIN               75624 
+#define BOT_TEXT_RACE_VOID_ELF             75625 
+#define BOT_TEXT_RACE_VULPERA              75626 
+#define BOT_TEXT_RACE_HIGH_ELF             75627 
+#define BOT_TEXT_RACE_PANDAREN             75628 
+#define BOT_TEXT_RACE_WORGEN               75629 
+#define BOT_TEXT_RACE_EREDAR               75630 
+#define BOT_TEXT_RACE_ZADALARI             75631 
+#define BOT_TEXT_RACE_LIGHTFORGED_DRAENEI  75632 
+#define BOT_TEXT_RACE_DEMONHUNTER_A        75633 
+#define BOT_TEXT_RACE_DEMONHUNTER_H        75634
+#define BOT_TEXT_RACE_TUSKARR              75636 
 
 class script_bot_giver : public CreatureScript
 {
@@ -221,6 +234,18 @@ public:
                             case RACE_TROLL:        raceTextId = BOT_TEXT_RACE_TROLL;   break;
                             case RACE_BLOODELF:     raceTextId = BOT_TEXT_RACE_BELF;    break;
                             case RACE_DRAENEI:      raceTextId = BOT_TEXT_RACE_DRAENEI; break;
+                            case RACE_GOBLIN:       raceTextId = BOT_TEXT_RACE_GOBLIN;  break;
+                            case RACE_VOIDELF:      raceTextId = BOT_TEXT_RACE_VOID_ELF; break;
+                            case RACE_VULPERA:      raceTextId = BOT_TEXT_RACE_VULPERA; break;
+                            case RACE_HIGH_ELF:     raceTextId = BOT_TEXT_RACE_HIGH_ELF; break;
+                            case RACE_PANDAREN:     raceTextId = BOT_TEXT_RACE_PANDAREN; break;
+                            case RACE_WOLGEN:       raceTextId = BOT_TEXT_RACE_WORGEN;  break;
+                            case RACE_EREDAR:       raceTextId = BOT_TEXT_RACE_EREDAR;  break;
+                            case RACE_FOREST_TROLL: raceTextId = BOT_TEXT_RACE_ZADALARI; break;
+                            case RACE_LIGHTFORGED:  raceTextId = BOT_TEXT_RACE_LIGHTFORGED_DRAENEI; break;
+                            case RACE_DH_A:         raceTextId = BOT_TEXT_RACE_DEMONHUNTER_A; break;
+                            case RACE_DH_H:         raceTextId = BOT_TEXT_RACE_DEMONHUNTER_H; break;
+                            case RACE_TUSKARR:      raceTextId = BOT_TEXT_RACE_TUSKARR; break;
                             default:                raceTextId = BOT_TEXT_RACE_UNKNOWN; break;
                         }
                         info_ostr << bot->GetName() << " (" << (

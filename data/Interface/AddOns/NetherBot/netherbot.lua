@@ -723,7 +723,7 @@ HideNPCButton:SetScript("OnClick", function()
 end)
 
 SummonNPCButton:SetScript("OnClick", function()
-    SendChatMessage(".npcbot recal teleport", "GUILD")
+    SendChatMessage(".npcbot recall teleport", "GUILD")
 end)
 
 followOnlyButton:SetScript("OnClick", function()

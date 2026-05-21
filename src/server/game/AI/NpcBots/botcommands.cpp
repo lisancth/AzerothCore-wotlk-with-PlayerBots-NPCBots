@@ -592,6 +592,9 @@ public:
             { "rebind",     HandleNpcBotCommandReBindCommand,       rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "nocast",     HandleNpcBotCommandNoCastCommand,       rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "nolongcast", HandleNpcBotCommandNoLongCastCommand,   rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "spread",     HandleNpcBotCommandSpreadCommand,       rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "spreadio",   HandleNpcBotCommandSpreadIOCommand,     rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "stack",      HandleNpcBotCommandStackCommand,        rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
         };
 
         static ChatCommandTable npcbotAttackDistanceCommandTable =
@@ -691,6 +694,7 @@ public:
             { "unhide",     HandleNpcBotUnhideCommand,              rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_UNHIDE,             Console::No  },
             { "show",       HandleNpcBotUnhideCommand,              rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_UNHIDE,             Console::No  },
             { "recall",     npcbotRecallCommandTable                                                                                },
+            { "recal",      npcbotRecallCommandTable                                                                                },
             { "kill",       HandleNpcBotKillCommand,                rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_KILL,               Console::No  },
             { "suicide",    HandleNpcBotKillCommand,                rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_KILL,               Console::No  },
             { "fix",        HandleNpcBotFixCommand,                 rbac_npcbot::RBAC_PERM_COMMAND_NPCBOT_REVIVE,             Console::No  },
@@ -4579,31 +4583,178 @@ public:
         return true;
     }
 
-    static bool HandleNpcBotCommandFollowOnlyCommand(ChatHandler* handler)
+    static bool HandleNpcBotCommandFollowOnlyCommand(ChatHandler* handler, Optional<std::string> filter)
     {
         Player* owner = handler->GetSession()->GetPlayer();
 
         if (!owner->HaveBot())
         {
-            handler->SendSysMessage(".npcbot command follow only");
+            handler->SendSysMessage(".npcbot command follow only [dps/healer/healers/melee]");
             handler->SendSysMessage("Makes npcbots follow you and do nothing else");
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        std::string msg;
-        if (!owner->GetBotMgr()->GetBotMap()->begin()->second->GetBotAI()->HasBotCommandState(BOT_COMMAND_INACTION))
+        std::string filterStr = filter ? *filter : "";
+        for (char& c : filterStr)
+            c = std::tolower(c);
+
+        bool hasInaction = false;
+        bool foundMatching = false;
+        BotMap const* bots = owner->GetBotMgr()->GetBotMap();
+
+        // 1. Determine if we are setting or clearing INACTION
+        for (auto const& pair : *bots)
         {
-            owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_INACTION);
-            msg = "Bots' command state set to 'INACTION'";
+            Creature* bot = pair.second;
+            if (!bot)
+                continue;
+
+            bool match = false;
+            if (filterStr.empty())
+                match = true;
+            else if (filterStr == "dps")
+                match = bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS) && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+            else if (filterStr == "healer" || filterStr == "healers")
+                match = bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+            else if (filterStr == "melee")
+                match = (bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS | NPC_BOT_ROLE_TANK))
+                        && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_RANGED)
+                        && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+
+            if (match)
+            {
+                if (!foundMatching)
+                {
+                    hasInaction = bot->GetBotAI()->HasBotCommandState(BOT_COMMAND_INACTION);
+                    foundMatching = true;
+                }
+            }
+        }
+
+        if (!foundMatching)
+        {
+            handler->PSendSysMessage("No bots matching the filter '{}' were found.", filterStr);
+            return true;
+        }
+
+        // 2. Apply toggle
+        std::string msg;
+        if (!hasInaction)
+        {
+            for (auto const& pair : *bots)
+            {
+                Creature* bot = pair.second;
+                if (!bot)
+                    continue;
+
+                bool match = false;
+                if (filterStr.empty())
+                    match = true;
+                else if (filterStr == "dps")
+                    match = bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS) && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+                else if (filterStr == "healer" || filterStr == "healers")
+                    match = bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+                else if (filterStr == "melee")
+                    match = (bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS | NPC_BOT_ROLE_TANK))
+                            && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_RANGED)
+                            && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+
+                if (match)
+                    bot->GetBotAI()->SetBotCommandState(BOT_COMMAND_INACTION, true);
+            }
+            msg = filterStr.empty() ? "Bots' command state set to 'INACTION'" : ("Bots (" + filterStr + ") command state set to 'INACTION'");
         }
         else
         {
-            owner->GetBotMgr()->SendBotCommandStateRemove(BOT_COMMAND_INACTION);
-            msg = "Bots' command state 'INACTION' was removed";
+            for (auto const& pair : *bots)
+            {
+                Creature* bot = pair.second;
+                if (!bot)
+                    continue;
+
+                bool match = false;
+                if (filterStr.empty())
+                    match = true;
+                else if (filterStr == "dps")
+                    match = bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS) && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+                else if (filterStr == "healer" || filterStr == "healers")
+                    match = bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+                else if (filterStr == "melee")
+                    match = (bot->GetBotAI()->HasRole(NPC_BOT_ROLE_DPS | NPC_BOT_ROLE_TANK))
+                            && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_RANGED)
+                            && !bot->GetBotAI()->HasRole(NPC_BOT_ROLE_HEAL);
+
+                if (match)
+                    bot->GetBotAI()->RemoveBotCommandState(BOT_COMMAND_INACTION);
+            }
+            msg = filterStr.empty() ? "Bots' command state 'INACTION' was removed" : ("Bots (" + filterStr + ") command state 'INACTION' was removed");
         }
 
         handler->SendSysMessage(msg);
+        return true;
+    }
+
+    static bool HandleNpcBotCommandSpreadCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage(".npcbot command spread");
+            handler->SendSysMessage("Spreads bots out (Follow Distance 70, Avoid Frontal AoE, Long Range)");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        owner->GetBotMgr()->SetBotFollowDist(70);
+        owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_LONG);
+        owner->GetBotMgr()->SetBotAttackAngleMode(BOT_ATTACK_ANGLE_AVOID_FRONTAL_AOE);
+        owner->GetBotMgr()->SetBotAllowCombatPositioning(true);
+
+        handler->SendSysMessage("Bots are spreading out (Follow Dist: 70, Long Range, Avoid Frontal AoE, Combat Positioning: Enabled)");
+        return true;
+    }
+
+    static bool HandleNpcBotCommandSpreadIOCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage(".npcbot command spreadio");
+            handler->SendSysMessage("Spreads bots out further (Follow Distance 85, Avoid Frontal AoE, Long Range)");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        owner->GetBotMgr()->SetBotFollowDist(85);
+        owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_LONG);
+        owner->GetBotMgr()->SetBotAttackAngleMode(BOT_ATTACK_ANGLE_AVOID_FRONTAL_AOE);
+        owner->GetBotMgr()->SetBotAllowCombatPositioning(true);
+
+        handler->SendSysMessage("Bots are spreading out further (Follow Dist: 85, Long Range, Avoid Frontal AoE, Combat Positioning: Enabled)");
+        return true;
+    }
+
+    static bool HandleNpcBotCommandStackCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage(".npcbot command stack");
+            handler->SendSysMessage("Stacks bots up (Follow Distance 30, Normal Angle, Short Range)");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        owner->GetBotMgr()->SetBotFollowDist(30);
+        owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_SHORT);
+        owner->GetBotMgr()->SetBotAttackAngleMode(BOT_ATTACK_ANGLE_NORMAL);
+        owner->GetBotMgr()->SetBotAllowCombatPositioning(true);
+
+        handler->SendSysMessage("Bots are stacking up (Follow Dist: 30, Short Range, Normal Angle, Combat Positioning: Enabled)");
         return true;
     }
 

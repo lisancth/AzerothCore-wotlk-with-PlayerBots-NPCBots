@@ -15393,12 +15393,15 @@ void Player::_LoadTalents(PreparedQueryResult result)
     {
         do
         {
-            // xinef: checked
             uint32 spellId = (*result)[0].Get<uint32>();
             uint8 specMask = (*result)[1].Get<uint8>();
             addTalent(spellId, specMask, 0);
             TalentSpellPos const* talentPos = GetTalentSpellPos(spellId);
-            ASSERT(talentPos);
+            if (!talentPos)
+            {
+                LOG_ERROR("server", "Player::_LoadTalents: Player {} has invalid talent spell ID {}, skipping.", GetName(), spellId);
+                continue;
+            }
 
         } while (result->NextRow());
     }

@@ -797,7 +797,7 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recvData)
     }
 }
 
-#ifdef DIY_ADEN2008
+#if 0 // DIY_ADEN2008: old TrinityCore-style Trainer API removed in AzerothCore rewrite
 
 void WorldSession::SendTrainerList(ObjectGuid guid, uint32 npcspellid)
 {
@@ -928,4 +928,4 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle,
     SendPacket(&data);
 }
 
-#endif
+#endif // #if 0

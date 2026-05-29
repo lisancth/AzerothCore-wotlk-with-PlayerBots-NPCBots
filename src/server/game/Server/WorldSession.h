@@ -1195,10 +1195,7 @@ public:                                                 // opcodes handlers
     {
         return _isBot;
     }
-#ifdef DIY_ADEN2008
-    void SendTrainerList(ObjectGuid guid, uint32 npcspelli);
-    void SendTrainerList(ObjectGuid guid, std::string const& strTitle, uint32 npcspelli);
-#endif
+// DIY_ADEN2008: old TrinityCore-style Trainer API removed in AzerothCore rewrite
 
 private:
     void ProcessQueryCallbacks();

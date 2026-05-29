@@ -136,3 +136,11 @@ if(BUILD_SHARED_LIBS)
 
     message(STATUS "Clang: Disallow undefined symbols")
 endif()
+
+# Define NPCBots and PlayerBots macros
+target_compile_definitions(acore-compile-option-interface
+  INTERFACE
+    -DMOD_NPCERBOTS
+    -DMOD_PLAYERBOTS
+    -DDIY_ADEN2008)
+message(STATUS "Clang: Enable MOD_NPCERBOTS MOD_PLAYERBOTS DIY_ADEN2008")

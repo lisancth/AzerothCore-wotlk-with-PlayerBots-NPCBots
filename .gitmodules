@@ -1,6 +1,7 @@
 [submodule "modules/mod-playerbots"]
 	path = modules/mod-playerbots
-	url = https://github.com/mod-playerbots/mod-playerbots.git
+	url = https://github.com/lisancth/mod-playerbots.git
+	branch = reborn
 [submodule "modules/mod-ale"]
 	path = modules/mod-ale
 	url = https://github.com/azerothcore/mod-ale.git

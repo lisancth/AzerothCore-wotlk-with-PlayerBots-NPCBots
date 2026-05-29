@@ -125,9 +125,7 @@ struct npc_resurrected_drakkari_warrior : public ScriptedAI
 void AddSC_instance_drak_tharon_keep()
 {
     RegisterInstanceScript(instance_drak_tharon_keep, MAP_DRAK_THARON_KEEP);
-    RegisterCreatureAI(npc_resurrected_drakkari_warrior, NPC_RESURRECTED_DRAKKARI_WARRIOR);
-    RegisterCreatureAI(npc_resurrected_drakkari_warrior, NPC_RISEN_DRAKKARI_WARRIOR);
-    RegisterCreatureAI(npc_resurrected_drakkari_warrior, NPC_DRAKKARI_GUARDIAN);
+    RegisterCreatureAI(npc_resurrected_drakkari_warrior);
     RegisterSpellScript(spell_dtk_raise_dead_aura);
     RegisterSpellScript(spell_dtk_summon_random_drakkari);
 }

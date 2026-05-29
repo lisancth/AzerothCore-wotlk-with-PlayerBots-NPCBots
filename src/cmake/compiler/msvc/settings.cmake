@@ -113,11 +113,13 @@ target_compile_definitions(acore-compile-option-interface
     -DNOMINMAX)
 message(STATUS "MSVC: Enable NOMINMAX")
 
-# Define MOD_NPCERBOTS
+# Define NPCBots and PlayerBots macros
 target_compile_definitions(acore-compile-option-interface
   INTERFACE
-    -DMOD_NPCERBOTS)
-message(STATUS "MSVC: Enable MOD_NPCERBOTS")
+    -DMOD_NPCERBOTS
+    -DMOD_PLAYERBOTS
+    -DDIY_ADEN2008)
+message(STATUS "MSVC: Enable MOD_NPCERBOTS MOD_PLAYERBOTS DIY_ADEN2008")
 
 if(NOT WITH_WARNINGS)
   target_compile_options(acore-warning-interface

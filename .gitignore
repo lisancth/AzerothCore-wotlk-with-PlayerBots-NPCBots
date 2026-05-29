@@ -128,6 +128,17 @@ compile_commands.json
 # Include mod-dungeon-scale module
 !/modules/mod-dungeon-scale
 
+# Include locally-maintained modules (de-submoduled, tracked as plain dirs)
+!/modules/mod-aoe-loot
+!/modules/mod-challenge-modes
+!/modules/mod-dynamic-xp
+!/modules/mod-npc-beastmaster
+!/modules/mod-npc-buffer
+!/modules/mod-npc-enchanter
+!/modules/mod-random-enchants
+!/modules/mod-solocraft
+!/modules/mod-solo-lfg
+
 # Ignore Release directory
 Release/
 

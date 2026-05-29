@@ -2,12 +2,16 @@
 	path = modules/mod-playerbots
 	url = https://github.com/lisancth/mod-playerbots.git
 	branch = reborn
+	ignore = untracked
 [submodule "modules/mod-ale"]
 	path = modules/mod-ale
 	url = https://github.com/azerothcore/mod-ale.git
+	ignore = untracked
 [submodule "modules/mod-ah-bot-plus"]
 	path = modules/mod-ah-bot-plus
 	url = https://github.com/wowshub/mod-ah-bot-plus.git
+	ignore = untracked
 [submodule "modules/mod-dungeon-scale"]
 	path = modules/mod-dungeon-scale
 	url = https://github.com/NathanHandley/mod-dungeon-scale.git
+	ignore = untracked

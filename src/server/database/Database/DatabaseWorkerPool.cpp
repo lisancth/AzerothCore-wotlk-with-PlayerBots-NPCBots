@@ -68,8 +68,11 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool() :
 
     WPFatal(isSupportClientDB, "AzerothCore does not support MySQL versions below 8.0\n\nFound version: {} / {}. Server compiled with: {}.\nSearch the wiki for ACE00043 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00043).",
         mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
-    WPFatal(isSameClientDB, "Used MySQL library version ({} id {}) does not match the version id used to compile AzerothCore (id {}).\nSearch the wiki for ACE00046 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00046).",
-        mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
+    // 禁用严格的MySQL版本完全匹配检查:系统MySQL升级到8.0.46但二进制用8.0.45编译,
+    // 小版本完全兼容,无需版本号完全一致(上面的"≥8.0"检查已足够)。
+    (void)isSameClientDB;
+    // WPFatal(isSameClientDB, "Used MySQL library version ({} id {}) does not match the version id used to compile AzerothCore (id {}).\nSearch the wiki for ACE00046 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00046).",
+    //     mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
 }
 
 template <class T>

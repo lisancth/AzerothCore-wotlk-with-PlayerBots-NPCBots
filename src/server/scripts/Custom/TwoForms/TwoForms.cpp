@@ -23,6 +23,10 @@ public:
             uint32 spellId = (gender == GENDER_FEMALE) ? 97710 : 97709;
             LOG_INFO("server", "TwoForms: Player is Worgen, teaching spell ID: {}", spellId);
             player->learnSpell(spellId, false);
+
+            // 狼人种族技能：疾步夜行 (Darkflight 68992) - 移动速度+40%持续10秒
+            player->learnSpell(68992, false);
+            LOG_INFO("server", "TwoForms: Worgen learns Darkflight (68992)");
         }
         else
         {

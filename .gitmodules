@@ -15,3 +15,7 @@
 	path = modules/mod-dungeon-scale
 	url = https://github.com/NathanHandley/mod-dungeon-scale.git
 	ignore = untracked
+[submodule "modules/mod-starting-pet"]
+	path = modules/mod-starting-pet
+	url = https://github.com/lisancth/bestartingpet.git
+	ignore = untracked

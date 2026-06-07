@@ -28,3 +28,17 @@
 
 # Ignore sql/* files
 data/sql/*    linguist-documentation
+
+# 自定义二进制资源(禁止行尾转换,否则破坏文件)
+*.dbc binary
+*.mpq binary
+*.MPQ binary
+*.mdx binary
+*.m2  binary
+*.blp binary
+*.adt binary
+*.wdt binary
+*.wdl binary
+*.mp3 binary
+*.ogg binary
+*.wav binary

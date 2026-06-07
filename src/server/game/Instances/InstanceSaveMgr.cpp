@@ -562,7 +562,8 @@ void InstanceSaveMgr::_ResetOrWarnAll(uint32 mapid, Difficulty difficulty, bool 
 {
     // global reset for all instances of the given map
     MapEntry const* mapEntry = sMapStore.LookupEntry(mapid);
-    if (!mapEntry->Instanceable())
+    // 无效mapid(如自定义地图/穿墙到非法坐标)时mapEntry为null,加保护防止空指针崩溃
+    if (!mapEntry || !mapEntry->Instanceable())
         return;
 
     time_t now = GameTime::GetGameTime().count();

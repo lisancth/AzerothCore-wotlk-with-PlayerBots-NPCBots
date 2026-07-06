@@ -18,7 +18,7 @@ namespace
     constexpr uint32 DISPLAY_DRACTHYR_VISAGE_MALE = 566212;
     constexpr uint32 DISPLAY_DRACTHYR_VISAGE_FEMALE = 566213;
     constexpr uint8 DRACTHYR_DRAGON_SKIN_VARIANTS = 15;
-    constexpr uint8 DRACTHYR_VISAGE_SKINS_PER_DRAGON_SKIN = 16;
+    constexpr uint8 DRACTHYR_VISAGE_SKINS_PER_COLOR_GROUP = 8;
     constexpr uint8 DRACTHYR_DRAGON_ARMOR_VARIANTS = 8;
     constexpr uint8 DRACTHYR_DRAGON_DEFAULT_ARMOR_VARIANT = 0;
     constexpr uint8 DRACTHYR_DRAGON_DISPLAY_VARIANTS = DRACTHYR_DRAGON_SKIN_VARIANTS * DRACTHYR_DRAGON_ARMOR_VARIANTS;
@@ -31,7 +31,81 @@ namespace
         Dragon
     };
 
+    constexpr uint32 DRACTHYR_DRAGON_FORM_AURA_SYNC_MS = 1500;
+    constexpr uint32 DRACTHYR_DRAGON_FORM_AURA_CANCEL_MS = 750;
+
     std::unordered_map<uint64, DracthyrVisibleMode> DracthyrVisibleModes;
+    std::unordered_map<uint64, uint32> DracthyrDragonFormAuraSyncTimers;
+    std::unordered_map<uint64, uint32> DracthyrDragonFormAuraCancelTimers;
+
+    uint64 GetDracthyrStateKey(Player const* player)
+    {
+        return player->GetGUID().GetCounter();
+    }
+
+    void ClearDracthyrDragonFormAuraState(Player const* player)
+    {
+        uint64 key = GetDracthyrStateKey(player);
+        DracthyrDragonFormAuraSyncTimers.erase(key);
+        DracthyrDragonFormAuraCancelTimers.erase(key);
+    }
+
+    void StartDracthyrDragonFormAuraSync(Player const* player)
+    {
+        uint64 key = GetDracthyrStateKey(player);
+        DracthyrDragonFormAuraSyncTimers[key] = DRACTHYR_DRAGON_FORM_AURA_SYNC_MS;
+        DracthyrDragonFormAuraCancelTimers.erase(key);
+    }
+
+    void QueueDracthyrDragonFormAuraCancel(Player* player)
+    {
+        uint64 key = GetDracthyrStateKey(player);
+        DracthyrDragonFormAuraCancelTimers[key] = DRACTHYR_DRAGON_FORM_AURA_CANCEL_MS;
+        DracthyrDragonFormAuraSyncTimers.erase(key);
+        player->RemoveAurasDueToSpell(SPELL_DRACTHYR_DRAGON_FORM);
+    }
+
+    bool TickDracthyrDragonFormAuraSync(Player* player, uint32 diff)
+    {
+        uint64 key = GetDracthyrStateKey(player);
+        auto itr = DracthyrDragonFormAuraSyncTimers.find(key);
+        if (itr == DracthyrDragonFormAuraSyncTimers.end())
+            return false;
+
+        if (player->HasAura(SPELL_DRACTHYR_DRAGON_FORM))
+        {
+            DracthyrDragonFormAuraSyncTimers.erase(itr);
+            return false;
+        }
+
+        if (itr->second <= diff)
+        {
+            DracthyrDragonFormAuraSyncTimers.erase(itr);
+            return false;
+        }
+
+        itr->second -= diff;
+        return true;
+    }
+
+    bool TickDracthyrDragonFormAuraCancel(Player* player, uint32 diff)
+    {
+        uint64 key = GetDracthyrStateKey(player);
+        auto itr = DracthyrDragonFormAuraCancelTimers.find(key);
+        if (itr == DracthyrDragonFormAuraCancelTimers.end())
+            return false;
+
+        player->RemoveAurasDueToSpell(SPELL_DRACTHYR_DRAGON_FORM);
+
+        if (itr->second <= diff)
+        {
+            DracthyrDragonFormAuraCancelTimers.erase(itr);
+            return false;
+        }
+
+        itr->second -= diff;
+        return true;
+    }
 
     uint8 GetDracthyrOriginalGender(Player const* player)
     {
@@ -43,11 +117,33 @@ namespace
         return GetDracthyrOriginalGender(player) == GENDER_FEMALE ? DISPLAY_DRACTHYR_VISAGE_FEMALE : DISPLAY_DRACTHYR_VISAGE_MALE;
     }
 
-    uint8 GetDracthyrDragonSkinVariant(Player const* player)
+    uint8 GetDracthyrVisageSkinColorGroup(Player const* player)
     {
         uint8 skin = player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID);
-        uint8 skinVariant = skin / DRACTHYR_VISAGE_SKINS_PER_DRAGON_SKIN;
-        return std::min<uint8>(skinVariant, DRACTHYR_DRAGON_SKIN_VARIANTS - 1);
+        return skin / DRACTHYR_VISAGE_SKINS_PER_COLOR_GROUP;
+    }
+
+    uint8 GetDracthyrVisageSkinShade(Player const* player)
+    {
+        uint8 skin = player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID);
+        return skin % DRACTHYR_VISAGE_SKINS_PER_COLOR_GROUP;
+    }
+
+    uint8 MapDracthyrVisageSkinGroupToDragonSkin(uint8 visageSkinGroup)
+    {
+        // Race27 CharSections are ordered as:
+        // skin = visageColorGroup * 8 + shade.
+        // Dragon textures are ordered as 15 color groups. Group 00 is the pale/no-scale
+        // fallback, then groups 01-15 and 16-30 match dragon skins 00-14.
+        if (visageSkinGroup == 0)
+            return DRACTHYR_DRAGON_SKIN_VARIANTS - 1;
+
+        return (visageSkinGroup - 1) % DRACTHYR_DRAGON_SKIN_VARIANTS;
+    }
+
+    uint8 GetDracthyrDragonSkinVariant(Player const* player)
+    {
+        return MapDracthyrVisageSkinGroupToDragonSkin(GetDracthyrVisageSkinColorGroup(player));
     }
 
     uint8 GetDracthyrDragonArmorVariant(Player const* player)
@@ -111,7 +207,7 @@ namespace
 
     void ApplyDracthyrVisibleMode(Player* player, DracthyrVisibleMode mode, bool force = false)
     {
-        uint64 key = player->GetGUID().GetCounter();
+        uint64 key = GetDracthyrStateKey(player);
         auto itr = DracthyrVisibleModes.find(key);
         if (!force && itr != DracthyrVisibleModes.end() && itr->second == mode)
             return;
@@ -138,7 +234,10 @@ namespace
 
     void ResetDracthyrDragonForm(Player* player)
     {
-        DracthyrVisibleModes.erase(player->GetGUID().GetCounter());
+        uint64 key = GetDracthyrStateKey(player);
+        DracthyrVisibleModes.erase(key);
+        ClearDracthyrDragonFormAuraState(player);
+        player->RemoveAurasDueToSpell(SPELL_DRACTHYR_DRAGON_FORM);
         SetDracthyrDisplay(player, GetDracthyrVisageDisplayId(player));
     }
 
@@ -208,19 +307,28 @@ public:
 
         if (player->HasAura(SPELL_WARLOCK_METAMORPHOSIS))
         {
+            QueueDracthyrDragonFormAuraCancel(player);
             LOG_INFO("server", "TwoForms: Race27 Dracthyr {} ignored Dragon Form while Metamorphosis is active", player->GetName());
             return;
         }
 
-        uint32 nextDisplayId = IsDracthyrDragonDisplay(player->GetDisplayId())
-            ? GetDracthyrVisageDisplayId(player)
-            : GetDracthyrDragonDisplayId(player);
+        bool currentlyDragon = IsDracthyrDragonDisplay(player->GetDisplayId());
+        uint32 nextDisplayId = currentlyDragon ? GetDracthyrVisageDisplayId(player) : GetDracthyrDragonDisplayId(player);
 
         SetDracthyrDisplay(player, nextDisplayId);
-        LOG_INFO("server", "TwoForms: Race27 Dracthyr {} toggled display to {} (skin={}, dragonSkin={}, armorVariant={}, gender={})",
+
+        if (currentlyDragon)
+            QueueDracthyrDragonFormAuraCancel(player);
+        else
+            StartDracthyrDragonFormAuraSync(player);
+
+        LOG_INFO("server", "TwoForms: Race27 Dracthyr {} toggled Dragon Form to {} display {} (skin={}, visageSkinGroup={}, visageSkinShade={}, dragonSkin={}, armorVariant={}, gender={})",
             player->GetName(),
+            currentlyDragon ? "visage" : "dragon",
             nextDisplayId,
             player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID),
+            GetDracthyrVisageSkinColorGroup(player),
+            GetDracthyrVisageSkinShade(player),
             GetDracthyrDragonSkinVariant(player),
             GetDracthyrDragonArmorVariant(player),
             (uint32)GetDracthyrOriginalGender(player));
@@ -242,7 +350,7 @@ public:
         player->SetVisibleItemSlot(slot, nullptr);
     }
 
-    void OnPlayerUpdate(Player* player, uint32 /*diff*/) override
+    void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         if (player->getRace() != RACE_DRACTHYR_CUSTOM)
             return;
@@ -250,10 +358,27 @@ public:
         if (player->HasAura(SPELL_WARLOCK_METAMORPHOSIS))
             return;
 
-        if (IsDracthyrDragonDisplay(player->GetDisplayId()))
+        bool cancelPending = TickDracthyrDragonFormAuraCancel(player, diff);
+        bool waitingForAura = TickDracthyrDragonFormAuraSync(player, diff);
+        bool dragonDisplay = IsDracthyrDragonDisplay(player->GetDisplayId());
+
+        if (dragonDisplay)
+        {
+            if (!cancelPending && !waitingForAura && !player->HasAura(SPELL_DRACTHYR_DRAGON_FORM))
+            {
+                LOG_INFO("server", "TwoForms: Race27 Dracthyr {} returned to visage because Dragon Form aura was removed", player->GetName());
+                SetDracthyrDisplay(player, GetDracthyrVisageDisplayId(player));
+                return;
+            }
+
             ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Dragon);
-        else
-            ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Normal);
+            return;
+        }
+
+        if (player->HasAura(SPELL_DRACTHYR_DRAGON_FORM))
+            player->RemoveAurasDueToSpell(SPELL_DRACTHYR_DRAGON_FORM);
+
+        ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Normal);
     }
 
     void OnPlayerBeforeLogout(Player* player) override

@@ -8,22 +8,15 @@
 namespace
 {
     constexpr uint8 RACE_WORGEN_CUSTOM = 16;
-    constexpr uint8 RACE_DRACTHYR_CUSTOM = 35;
+    constexpr uint8 RACE_DRACTHYR_CUSTOM = 27;
 
     constexpr uint32 SPELL_WORGEN_TWO_FORMS_MALE = 97709;
     constexpr uint32 SPELL_WORGEN_TWO_FORMS_FEMALE = 97710;
     constexpr uint32 SPELL_DRACTHYR_DRAGON_FORM = 320555;
     constexpr uint32 SPELL_WARLOCK_METAMORPHOSIS = 47241;
-    constexpr uint32 SPELL_WARLOCK_METAMORPHOSIS_BOOST = 54817;
-    constexpr uint32 SPELL_WARLOCK_METAMORPHOSIS_TRIGGERED_SPELLS = 54879;
-    constexpr uint32 SPELL_VISUAL_KIT_WARLOCK_METAMORPHOSIS_PRECAST = 6778;
-    constexpr uint32 SPELL_VISUAL_KIT_WARLOCK_METAMORPHOSIS_IMPACT = 11228;
-    constexpr uint32 DRACTHYR_METAMORPHOSIS_VISUAL_REFRESH_MS = 6000;
-    constexpr uint32 DRACTHYR_METAMORPHOSIS_PENDING_MS = 100;
 
     constexpr uint32 DISPLAY_DRACTHYR_VISAGE_MALE = 566212;
     constexpr uint32 DISPLAY_DRACTHYR_VISAGE_FEMALE = 566213;
-    constexpr uint32 DISPLAY_WARLOCK_METAMORPHOSIS = 25277;
     constexpr uint8 DRACTHYR_DRAGON_SKIN_VARIANTS = 15;
     constexpr uint8 DRACTHYR_VISAGE_SKINS_PER_DRAGON_SKIN = 16;
     constexpr uint8 DRACTHYR_DRAGON_ARMOR_VARIANTS = 8;
@@ -35,13 +28,10 @@ namespace
     enum class DracthyrVisibleMode : uint8
     {
         Normal,
-        Dragon,
-        Hidden
+        Dragon
     };
 
     std::unordered_map<uint64, DracthyrVisibleMode> DracthyrVisibleModes;
-    std::unordered_map<uint64, uint32> DracthyrMetamorphosisVisualTimers;
-    std::unordered_map<uint64, uint32> DracthyrMetamorphosisPendingTimers;
 
     uint8 GetDracthyrOriginalGender(Player const* player)
     {
@@ -53,14 +43,46 @@ namespace
         return GetDracthyrOriginalGender(player) == GENDER_FEMALE ? DISPLAY_DRACTHYR_VISAGE_FEMALE : DISPLAY_DRACTHYR_VISAGE_MALE;
     }
 
-    uint32 GetDracthyrDragonDisplayId(Player const* player)
+    uint8 GetDracthyrDragonSkinVariant(Player const* player)
     {
         uint8 skin = player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID);
         uint8 skinVariant = skin / DRACTHYR_VISAGE_SKINS_PER_DRAGON_SKIN;
-        if (skinVariant >= DRACTHYR_DRAGON_SKIN_VARIANTS)
-            skinVariant = DRACTHYR_DRAGON_SKIN_VARIANTS - 1;
+        return std::min<uint8>(skinVariant, DRACTHYR_DRAGON_SKIN_VARIANTS - 1);
+    }
 
-        uint32 displayIndex = skinVariant * DRACTHYR_DRAGON_ARMOR_VARIANTS + DRACTHYR_DRAGON_DEFAULT_ARMOR_VARIANT;
+    uint8 GetDracthyrDragonArmorVariant(Player const* player)
+    {
+        // Sirus dragon displays are arranged as 15 skin colors * 8 baked armor textures.
+        // The normal WotLK item models do not fit the dragon body, so dragon form uses
+        // these baked armor rows instead of showing chest/leg/helmet equipment directly.
+        switch (player->getClass())
+        {
+            case CLASS_PRIEST:
+            case CLASS_MAGE:
+            case CLASS_WARLOCK:
+                return 0;
+            case CLASS_ROGUE:
+            case CLASS_DRUID:
+                return 1;
+            case CLASS_HUNTER:
+            case CLASS_SHAMAN:
+                return 2;
+            case CLASS_WARRIOR:
+                return 3;
+            case CLASS_PALADIN:
+                return 4;
+            case CLASS_DEATH_KNIGHT:
+                return 5;
+            default:
+                return DRACTHYR_DRAGON_DEFAULT_ARMOR_VARIANT;
+        }
+    }
+
+    uint32 GetDracthyrDragonDisplayId(Player const* player)
+    {
+        uint8 skinVariant = GetDracthyrDragonSkinVariant(player);
+        uint8 armorVariant = std::min<uint8>(GetDracthyrDragonArmorVariant(player), DRACTHYR_DRAGON_ARMOR_VARIANTS - 1);
+        uint32 displayIndex = skinVariant * DRACTHYR_DRAGON_ARMOR_VARIANTS + armorVariant;
         uint32 displayBase = GetDracthyrOriginalGender(player) == GENDER_FEMALE ? DISPLAY_DRACTHYR_DRAGON_FEMALE_BASE : DISPLAY_DRACTHYR_DRAGON_MALE_BASE;
         return displayBase + displayIndex;
     }
@@ -69,19 +91,6 @@ namespace
     {
         return (displayId >= DISPLAY_DRACTHYR_DRAGON_MALE_BASE && displayId < DISPLAY_DRACTHYR_DRAGON_MALE_BASE + DRACTHYR_DRAGON_DISPLAY_VARIANTS) ||
             (displayId >= DISPLAY_DRACTHYR_DRAGON_FEMALE_BASE && displayId < DISPLAY_DRACTHYR_DRAGON_FEMALE_BASE + DRACTHYR_DRAGON_DISPLAY_VARIANTS);
-    }
-
-    void SetDracthyrClientRace(Player* player, uint8 race)
-    {
-        if (player->GetByteValue(UNIT_FIELD_BYTES_0, 0) == race)
-            return;
-
-        player->SetByteValue(UNIT_FIELD_BYTES_0, 0, race);
-    }
-
-    void RestoreDracthyrClientRace(Player* player)
-    {
-        SetDracthyrClientRace(player, RACE_DRACTHYR_CUSTOM);
     }
 
     bool IsWeaponEquipmentSlot(uint8 slot)
@@ -100,19 +109,6 @@ namespace
         }
     }
 
-    void RefreshDracthyrVirtualWeapons(Player* player, bool showWeapons)
-    {
-        if (showWeapons)
-        {
-            player->SetSheath(player->GetSheath());
-            return;
-        }
-
-        player->SetVirtualItemSlot(0, nullptr);
-        player->SetVirtualItemSlot(1, nullptr);
-        player->SetVirtualItemSlot(2, nullptr);
-    }
-
     void ApplyDracthyrVisibleMode(Player* player, DracthyrVisibleMode mode, bool force = false)
     {
         uint64 key = player->GetGUID().GetCounter();
@@ -122,136 +118,26 @@ namespace
 
         DracthyrVisibleModes[key] = mode;
 
-        switch (mode)
-        {
-            case DracthyrVisibleMode::Normal:
-                RefreshDracthyrVisibleItems(player, true, true);
-                RestoreDracthyrClientRace(player);
-                break;
-            case DracthyrVisibleMode::Dragon:
-                RefreshDracthyrVisibleItems(player, false, true);
-                RestoreDracthyrClientRace(player);
-                break;
-            case DracthyrVisibleMode::Hidden:
-                RefreshDracthyrVisibleItems(player, false, false);
-                RefreshDracthyrVirtualWeapons(player, false);
-                break;
-        }
-    }
-
-    void PlayDracthyrMetamorphosisVisual(Player* player)
-    {
-        // Spell 47241 uses SpellVisual 12118; these are its safe visual kits.
-        player->SendPlaySpellVisual(SPELL_VISUAL_KIT_WARLOCK_METAMORPHOSIS_PRECAST);
-        player->SendPlaySpellImpact(player->GetGUID(), SPELL_VISUAL_KIT_WARLOCK_METAMORPHOSIS_IMPACT);
-    }
-
-    void RefreshDracthyrMetamorphosisVisual(Player* player, uint32 diff, bool force = false)
-    {
-        uint64 key = player->GetGUID().GetCounter();
-        uint32& timer = DracthyrMetamorphosisVisualTimers[key];
-
-        if (!force && timer > diff)
-        {
-            timer -= diff;
-            return;
-        }
-
-        PlayDracthyrMetamorphosisVisual(player);
-        timer = DRACTHYR_METAMORPHOSIS_VISUAL_REFRESH_MS;
-    }
-
-    void ClearDracthyrMetamorphosisVisual(Player const* player)
-    {
-        DracthyrMetamorphosisVisualTimers.erase(player->GetGUID().GetCounter());
-    }
-
-    void MarkDracthyrMetamorphosisPending(Player const* player)
-    {
-        DracthyrMetamorphosisPendingTimers[player->GetGUID().GetCounter()] = DRACTHYR_METAMORPHOSIS_PENDING_MS;
-    }
-
-    bool IsDracthyrMetamorphosisPending(Player const* player, uint32 diff)
-    {
-        uint64 key = player->GetGUID().GetCounter();
-        auto itr = DracthyrMetamorphosisPendingTimers.find(key);
-        if (itr == DracthyrMetamorphosisPendingTimers.end())
-            return false;
-
-        if (itr->second > diff)
-        {
-            itr->second -= diff;
-            return true;
-        }
-
-        DracthyrMetamorphosisPendingTimers.erase(itr);
-        return false;
-    }
-
-    void ClearDracthyrMetamorphosisPending(Player const* player)
-    {
-        DracthyrMetamorphosisPendingTimers.erase(player->GetGUID().GetCounter());
-    }
-
-    void SetDracthyrVisageDisplayOnly(Player* player)
-    {
-        RestoreDracthyrClientRace(player);
-        player->SetNativeDisplayId(GetDracthyrVisageDisplayId(player));
-        player->SetDisplayId(GetDracthyrVisageDisplayId(player));
-        player->SetSheath(player->GetSheath());
+        if (mode == DracthyrVisibleMode::Dragon)
+            RefreshDracthyrVisibleItems(player, false, true);
+        else
+            RefreshDracthyrVisibleItems(player, true, true);
     }
 
     void SetDracthyrDisplay(Player* player, uint32 displayId)
     {
         bool dragonForm = IsDracthyrDragonDisplay(displayId);
 
-        RestoreDracthyrClientRace(player);
-        // Native 保持人形，只切当前 Display；这样客户端按变形处理，不把装备硬挂到龙模型上。
+        // Keep native display as visage. Only current display changes.
+        // This avoids forcing normal equipment meshes onto the Sirus dragon body.
         player->SetNativeDisplayId(GetDracthyrVisageDisplayId(player));
         player->SetDisplayId(displayId);
         ApplyDracthyrVisibleMode(player, dragonForm ? DracthyrVisibleMode::Dragon : DracthyrVisibleMode::Normal, true);
         player->SetSheath(player->GetSheath());
     }
 
-    void ApplyDracthyrMetamorphosis(Player* player, bool force = false)
+    void ResetDracthyrDragonForm(Player* player)
     {
-        // Race35 must not receive the real FORM_METAMORPHOSIS shapeshift aura.
-        // The demon display itself is safer if all player item/weapon visuals
-        // are cleared before the model swap packet reaches the client.
-        bool const alreadyDemon = player->GetDisplayId() == DISPLAY_WARLOCK_METAMORPHOSIS;
-        ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Hidden, force || !alreadyDemon);
-        RefreshDracthyrVirtualWeapons(player, false);
-        RestoreDracthyrClientRace(player);
-
-        player->SetNativeDisplayId(GetDracthyrVisageDisplayId(player));
-        if (force || !alreadyDemon)
-            player->SetDisplayId(DISPLAY_WARLOCK_METAMORPHOSIS);
-
-        ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Hidden, force);
-        RefreshDracthyrVirtualWeapons(player, false);
-
-        if (!player->HasAura(SPELL_WARLOCK_METAMORPHOSIS_BOOST))
-            player->CastSpell(player, SPELL_WARLOCK_METAMORPHOSIS_BOOST, true);
-        if (!player->HasAura(SPELL_WARLOCK_METAMORPHOSIS_TRIGGERED_SPELLS))
-            player->CastSpell(player, SPELL_WARLOCK_METAMORPHOSIS_TRIGGERED_SPELLS, true);
-    }
-
-    void ClearDracthyrMetamorphosis(Player* player)
-    {
-        player->RemoveAurasDueToSpell(SPELL_WARLOCK_METAMORPHOSIS_BOOST);
-        player->RemoveAurasDueToSpell(SPELL_WARLOCK_METAMORPHOSIS_TRIGGERED_SPELLS);
-        ClearDracthyrMetamorphosisVisual(player);
-
-        RestoreDracthyrClientRace(player);
-        if (player->GetDisplayId() == DISPLAY_WARLOCK_METAMORPHOSIS)
-            SetDracthyrDisplay(player, GetDracthyrVisageDisplayId(player));
-    }
-
-    void ResetDracthyrTemporaryForms(Player* player)
-    {
-        player->RemoveAurasDueToSpell(SPELL_WARLOCK_METAMORPHOSIS);
-        ClearDracthyrMetamorphosis(player);
-        ClearDracthyrMetamorphosisPending(player);
         DracthyrVisibleModes.erase(player->GetGUID().GetCounter());
         SetDracthyrDisplay(player, GetDracthyrVisageDisplayId(player));
     }
@@ -261,7 +147,7 @@ namespace
         if (!player->HasSpell(SPELL_DRACTHYR_DRAGON_FORM))
         {
             player->learnSpell(SPELL_DRACTHYR_DRAGON_FORM, false);
-            LOG_INFO("server", "TwoForms: Dracthyr learns Dragon Form ({}) on {}", SPELL_DRACTHYR_DRAGON_FORM, reason);
+            LOG_INFO("server", "TwoForms: Race27 Dracthyr learns Dragon Form ({}) on {}", SPELL_DRACTHYR_DRAGON_FORM, reason);
         }
     }
 }
@@ -282,28 +168,14 @@ public:
         LOG_INFO("server", "TwoForms: OnPlayerFirstLogin triggered for player {} (Race: {}, Gender: {})",
             player->GetName(), (uint32)race, (uint32)gender);
 
-        if (race == RACE_WORGEN_CUSTOM) // RACE_WOLGEN = 16
+        if (race == RACE_WORGEN_CUSTOM)
         {
             uint32 spellId = (gender == GENDER_FEMALE) ? SPELL_WORGEN_TWO_FORMS_FEMALE : SPELL_WORGEN_TWO_FORMS_MALE;
             LOG_INFO("server", "TwoForms: Player is Worgen, teaching spell ID: {}", spellId);
             player->learnSpell(spellId, false);
 
-            // ====== 以下4个种族技能改由【遗产菜单(Heritage Horizons)】管理 ======
-            // 遗产菜单让玩家在UI里自选/重置这些技能。若源码也强制给,会导致
-            // 菜单"重置"失效(源码给的技能菜单移除不了)。故注释掉,交给菜单。
-            // 若以后不用遗产功能,取消注释即可恢复源码强制给。
-            //
-            // 疾步夜行 68992 (移速+40% 10秒)
-            // player->learnSpell(68992, false);
-            // 剥皮专家 68978 (被动,剥皮+15点)
-            // player->learnSpell(68978, false);
-            // 恶意 68975 (被动,全暴击+1%)
-            // player->learnSpell(68975, false);
-            // 畸变 68976 (被动,降低受暗影/自然命中1%)
-            // player->learnSpell(68976, false);
-            //
-            // 注意：双形态(97709/97710)不在遗产菜单里,保留上面的源码强制给。
-            // 注意：狂野奔跑(87840/87842)大灾变坐骑机制WotLK核心会崩,不做。
+            // Worgen extra racial spells are managed by the Heritage menu in this repack.
+            // Keep only Two Forms here.
         }
         else if (race == RACE_DRACTHYR_CUSTOM)
         {
@@ -311,49 +183,32 @@ public:
         }
         else
         {
-            LOG_INFO("server", "TwoForms: Player is not Worgen (Race is {}), skipping.", (uint32)race);
+            LOG_INFO("server", "TwoForms: Player is not Worgen or Dracthyr (Race is {}), skipping.", (uint32)race);
         }
     }
 
     void OnPlayerLogin(Player* player) override
     {
-        if (player->getRace() == RACE_DRACTHYR_CUSTOM)
-        {
-            player->LearnDefaultSkills();
-            ResetDracthyrTemporaryForms(player);
-            TeachDracthyrDragonForm(player, "login");
-        }
+        if (player->getRace() != RACE_DRACTHYR_CUSTOM)
+            return;
+
+        player->LearnDefaultSkills();
+        ResetDracthyrDragonForm(player);
+        TeachDracthyrDragonForm(player, "login");
     }
 
     void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
     {
         if (!spell || player->getRace() != RACE_DRACTHYR_CUSTOM)
-        {
             return;
-        }
 
         SpellInfo const* spellInfo = spell->GetSpellInfo();
-        if (!spellInfo)
-        {
+        if (!spellInfo || spellInfo->Id != SPELL_DRACTHYR_DRAGON_FORM)
             return;
-        }
-
-        if (spellInfo->Id == SPELL_WARLOCK_METAMORPHOSIS)
-        {
-            MarkDracthyrMetamorphosisPending(player);
-            ClearDracthyrMetamorphosisVisual(player);
-            LOG_INFO("server", "TwoForms: Dracthyr {} queued Metamorphosis ({}) for one-tick safe demon display", player->GetName(), SPELL_WARLOCK_METAMORPHOSIS);
-            return;
-        }
-
-        if (spellInfo->Id != SPELL_DRACTHYR_DRAGON_FORM)
-        {
-            return;
-        }
 
         if (player->HasAura(SPELL_WARLOCK_METAMORPHOSIS))
         {
-            LOG_INFO("server", "TwoForms: Dracthyr {} ignored Dragon Form while Metamorphosis is active", player->GetName());
+            LOG_INFO("server", "TwoForms: Race27 Dracthyr {} ignored Dragon Form while Metamorphosis is active", player->GetName());
             return;
         }
 
@@ -362,72 +217,55 @@ public:
             : GetDracthyrDragonDisplayId(player);
 
         SetDracthyrDisplay(player, nextDisplayId);
-        LOG_INFO("server", "TwoForms: Dracthyr {} toggled display to {} (skin={}, dragonSkin={}, hairColor={}, facial={})",
+        LOG_INFO("server", "TwoForms: Race27 Dracthyr {} toggled display to {} (skin={}, dragonSkin={}, armorVariant={}, gender={})",
             player->GetName(),
             nextDisplayId,
             player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID),
-            std::min<uint8>(player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID) / DRACTHYR_VISAGE_SKINS_PER_DRAGON_SKIN, DRACTHYR_DRAGON_SKIN_VARIANTS - 1),
-            player->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_HAIR_COLOR_ID),
-            player->GetByteValue(PLAYER_BYTES_2, PLAYER_BYTES_2_OFFSET_FACIAL_STYLE));
+            GetDracthyrDragonSkinVariant(player),
+            GetDracthyrDragonArmorVariant(player),
+            (uint32)GetDracthyrOriginalGender(player));
     }
 
     void OnPlayerAfterSetVisibleItemSlot(Player* player, uint8 slot, Item* item) override
     {
         if (!item || player->getRace() != RACE_DRACTHYR_CUSTOM)
-        {
             return;
-        }
 
-        if (player->HasAura(SPELL_WARLOCK_METAMORPHOSIS) || player->GetDisplayId() == DISPLAY_WARLOCK_METAMORPHOSIS)
-        {
-            player->SetVisibleItemSlot(slot, nullptr);
-            RefreshDracthyrVirtualWeapons(player, false);
+        if (player->HasAura(SPELL_WARLOCK_METAMORPHOSIS))
             return;
-        }
 
         if (!IsDracthyrDragonDisplay(player->GetDisplayId()) || IsWeaponEquipmentSlot(slot))
             return;
 
-        // Sirus 的龙形态不显示普通装备。装备仍然穿着并提供属性，只清可见外观。
+        // Sirus dragon form uses baked body/armor textures. Gear remains equipped
+        // and keeps stats, but non-weapon visible item models are hidden.
         player->SetVisibleItemSlot(slot, nullptr);
     }
 
-    void OnPlayerUpdate(Player* player, uint32 p_time) override
+    void OnPlayerUpdate(Player* player, uint32 /*diff*/) override
     {
         if (player->getRace() != RACE_DRACTHYR_CUSTOM)
             return;
 
-        if (IsDracthyrMetamorphosisPending(player, p_time))
-            return;
-
         if (player->HasAura(SPELL_WARLOCK_METAMORPHOSIS))
-        {
-            ApplyDracthyrMetamorphosis(player);
-            RefreshDracthyrMetamorphosisVisual(player, p_time);
             return;
-        }
-
-        ClearDracthyrMetamorphosis(player);
 
         if (IsDracthyrDragonDisplay(player->GetDisplayId()))
-        {
             ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Dragon);
-            return;
-        }
-
-        ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Normal);
+        else
+            ApplyDracthyrVisibleMode(player, DracthyrVisibleMode::Normal);
     }
 
     void OnPlayerBeforeLogout(Player* player) override
     {
         if (player->getRace() == RACE_DRACTHYR_CUSTOM)
-            ResetDracthyrTemporaryForms(player);
+            ResetDracthyrDragonForm(player);
     }
 
     void OnPlayerLogout(Player* player) override
     {
         if (player->getRace() == RACE_DRACTHYR_CUSTOM)
-            ResetDracthyrTemporaryForms(player);
+            ResetDracthyrDragonForm(player);
     }
 };
 
@@ -435,4 +273,3 @@ void AddSC_TwoForms()
 {
     new TwoForms();
 }
-

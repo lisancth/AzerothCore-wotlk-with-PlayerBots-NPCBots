@@ -37,6 +37,46 @@ typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaInfoByTripple
 
 typedef std::multimap<uint32, CharSectionsEntry const*> CharSectionsMap;
 
+namespace
+{
+bool IsCustomRaceLanguageSkill(uint32 skill)
+{
+    switch (skill)
+    {
+        case SKILL_LANG_COMMON:
+        case SKILL_LANG_ORCISH:
+        case SKILL_LANG_DWARVEN:
+        case SKILL_LANG_DARNASSIAN:
+        case SKILL_LANG_TAURAHE:
+        case SKILL_LANG_THALASSIAN:
+        case SKILL_LANG_DRACONIC:
+        case SKILL_LANG_DEMON_TONGUE:
+        case SKILL_LANG_TITAN:
+        case SKILL_LANG_OLD_TONGUE:
+        case SKILL_LANG_GNOMISH:
+        case SKILL_LANG_TROLL:
+        case SKILL_LANG_GUTTERSPEAK:
+        case SKILL_LANG_DRAENEI:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool HasMultipleRaceBits(uint32 raceMask)
+{
+    return raceMask && (raceMask & (raceMask - 1));
+}
+
+bool IsDracthyrAllowedBySkillRaceMask(uint32 skill, uint32 raceMask)
+{
+    // Race35 is outside WotLK's uint32 race-mask range. Treat broad
+    // multi-race skill rows as compatible, but do not inherit single-race
+    // racial rows except for languages that are handled explicitly.
+    return IsCustomRaceLanguageSkill(skill) || HasMultipleRaceBits(raceMask);
+}
+}
+
 DBCStorage <AreaTableEntry> sAreaTableStore(AreaTableEntryfmt);
 DBCStorage <AreaGroupEntry> sAreaGroupStore(AreaGroupEntryfmt);
 DBCStorage <AreaPOIEntry> sAreaPOIStore(AreaPOIEntryfmt);
@@ -417,7 +457,7 @@ void LoadDBCStores(const std::string& dataPath)
         sCharStartOutfitMap[outfit->Race | (outfit->Class << 8) | (outfit->Gender << 16)] = outfit;
 
     for (CharSectionsEntry const* charSection : sCharSectionsStore)
-        if (charSection->Race && ((1 << (charSection->Race - 1)) & sRaceMgr->GetPlayableRaceMask()) != 0) //ignore Nonplayable races
+        if (charSection->Race && sRaceMgr->IsRacePlayable(charSection->Race)) //ignore Nonplayable races
             sCharSectionMap.insert({ charSection->GenType | (charSection->Gender << 8) | (charSection->Race << 16), charSection });
 
     for (FactionEntry const* faction : sFactionStore)
@@ -943,16 +983,31 @@ uint32 GetDefaultMapLight(uint32 mapId)
 SkillRaceClassInfoEntry const* GetSkillRaceClassInfo(uint32 skill, uint8 race, uint8 class_)
 {
     SkillRaceClassInfoBounds bounds = SkillRaceClassInfoBySkill.equal_range(skill);
+    uint32 raceMask = GetRaceMaskForRace(race);
+    uint32 classMask = class_ ? (1 << (class_ - 1)) : 0;
+
     for (SkillRaceClassInfoMap::iterator itr = bounds.first; itr != bounds.second; ++itr)
     {
-        if (itr->second->RaceMask && !(itr->second->RaceMask & (1 << (race - 1))))
+        if (itr->second->ClassMask && !(itr->second->ClassMask & classMask))
         {
             continue;
         }
 
-        if (itr->second->ClassMask && !(itr->second->ClassMask & (1 << (class_ - 1))))
+        if (itr->second->RaceMask)
         {
-            continue;
+            if (raceMask)
+            {
+                if (!(itr->second->RaceMask & raceMask))
+                    continue;
+            }
+            else
+            {
+                // Race35 Dracthyr is above the 32-bit DBC race-mask range.
+                // Let it use broad class/profession rows, while keeping
+                // single-race racial rows gated.
+                if (race != RACE_DRACTHYR || !IsDracthyrAllowedBySkillRaceMask(itr->second->SkillID, itr->second->RaceMask))
+                    continue;
+            }
         }
 
         return itr->second;

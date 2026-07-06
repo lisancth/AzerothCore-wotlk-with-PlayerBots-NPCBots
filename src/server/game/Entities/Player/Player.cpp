@@ -111,6 +111,34 @@
 //end npcbot
 #endif
 
+namespace
+{
+bool IsSkillLineAbilityRaceAllowedForPlayer(Player const* player, SkillLineAbilityEntry const* ability)
+{
+    if (!ability->RaceMask || (ability->RaceMask & player->getRaceMask()))
+        return true;
+
+    if (player->getRace() != RACE_DRACTHYR)
+        return false;
+
+    return GetSkillRaceClassInfo(ability->SkillLine, player->getRace(), player->getClass()) != nullptr;
+}
+
+uint8 GetDracthyrAllianceSkillTemplateRace(uint8 classId)
+{
+    switch (classId)
+    {
+        case CLASS_DRUID:
+            return RACE_NIGHTELF;
+        case CLASS_HUNTER:
+        case CLASS_SHAMAN:
+            return RACE_DRAENEI;
+        default:
+            return RACE_HUMAN;
+    }
+}
+}
+
 enum CharacterFlags
 {
     CHARACTER_FLAG_NONE                 = 0x00000000,
@@ -5963,6 +5991,12 @@ void Player::CheckAreaExploreAndOutdoor()
 
 TeamId Player::TeamIdForRace(uint8 race)
 {
+    if (race == RACE_DRACTHYR)
+        return TEAM_ALLIANCE;
+
+    if (race == RACE_NAGA)
+        return TEAM_HORDE;
+
     if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(race))
     {
         switch (rEntry->TeamID)
@@ -12067,13 +12101,62 @@ void Player::LearnDefaultSkills()
 {
     // learn default race/class skills
     PlayerInfo const* info = sObjectMgr->GetPlayerInfo(getRace(), getClass());
-    for (PlayerCreateInfoSkills::const_iterator itr = info->skills.begin(); itr != info->skills.end(); ++itr)
+    auto learnInfoSkills = [this](PlayerInfo const* sourceInfo)
     {
-        uint32 skillId = itr->SkillId;
-        if (HasSkill(skillId))
-            continue;
+        if (!sourceInfo)
+            return;
 
-        LearnDefaultSkill(skillId, itr->Rank);
+        for (PlayerCreateInfoSkills::const_iterator itr = sourceInfo->skills.begin(); itr != sourceInfo->skills.end(); ++itr)
+        {
+            uint32 skillId = itr->SkillId;
+            if (HasSkill(skillId))
+                continue;
+
+            LearnDefaultSkill(skillId, itr->Rank);
+        }
+    };
+
+    learnInfoSkills(info);
+
+    if (getRace() == RACE_DRACTHYR)
+    {
+        learnInfoSkills(sObjectMgr->GetPlayerInfo(GetDracthyrAllianceSkillTemplateRace(getClass()), getClass()));
+
+        // Dracthyr uses Race27 now, but this fallback keeps newly-created
+        // characters safe even if a language DBC/SQL row is missing.
+        static constexpr uint32 DracthyrLanguageSkills[] =
+        {
+            SKILL_LANG_COMMON,
+            SKILL_LANG_ORCISH,
+            SKILL_LANG_DRACONIC,
+            SKILL_LANG_DRAENEI
+        };
+
+        for (uint32 skillId : DracthyrLanguageSkills)
+            if (!HasSkill(skillId))
+                SetSkill(skillId, 0, 300, 300);
+
+        if (getClass() == CLASS_SHAMAN)
+        {
+            // Race27 Dracthyr Shaman must always have the three Shaman
+            // skill lines plus armor/shield proficiencies. This mirrors the
+            // old Stage40 Race35 template fallback and protects existing
+            // characters when SQL/DBC data was imported in the wrong order.
+            static constexpr uint32 DracthyrShamanSkills[] =
+            {
+                373, // Enhancement
+                374, // Restoration
+                375, // Elemental Combat
+                413, // Mail
+                414, // Leather
+                415, // Cloth
+                433  // Shields
+            };
+
+            for (uint32 skillId : DracthyrShamanSkills)
+                if (!HasSkill(skillId))
+                    SetSkill(skillId, 0, 1, 1);
+        }
     }
 }
 
@@ -12197,7 +12280,6 @@ void Player::learnQuestRewardedSpells()
 
 void Player::learnSkillRewardedSpells(uint32 skill_id, uint32 skill_value)
 {
-    uint32 raceMask  = getRaceMask();
     uint32 classMask = getClassMask();
 
     // Get all abilities for this skill and sort by MinSkillLineRank (lowest to highest)
@@ -12223,7 +12305,7 @@ void Player::learnSkillRewardedSpells(uint32 skill_id, uint32 skill_value)
         }
 
         // Check race if set
-        if (pAbility->RaceMask && !(pAbility->RaceMask & raceMask))
+        if (!IsSkillLineAbilityRaceAllowedForPlayer(this, pAbility))
         {
             continue;
         }
@@ -12570,7 +12652,6 @@ float Player::GetReputationPriceDiscount(FactionTemplateEntry const* factionTemp
 
 bool Player::IsSpellFitByClassAndRace(uint32 spell_id) const
 {
-    uint32 racemask  = getRaceMask();
     uint32 classmask = getClassMask();
 
     SkillLineAbilityMapBounds bounds = sSpellMgr->GetSkillLineAbilityMapBounds(spell_id);
@@ -12580,7 +12661,7 @@ bool Player::IsSpellFitByClassAndRace(uint32 spell_id) const
     for (SkillLineAbilityMap::const_iterator _spell_idx = bounds.first; _spell_idx != bounds.second; ++_spell_idx)
     {
         // skip wrong race skills
-        if (_spell_idx->second->RaceMask && (_spell_idx->second->RaceMask & racemask) == 0)
+        if (!IsSkillLineAbilityRaceAllowedForPlayer(this, _spell_idx->second))
             continue;
 
         // skip wrong class skills

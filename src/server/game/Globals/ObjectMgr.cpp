@@ -1860,6 +1860,7 @@ uint32 ObjectMgr::GetModelForTotem(SummonSlot totemSlot, Races race) const
         case RACE_WOLGEN:       // 16
         case RACE_LIGHTFORGED:  // 19
         case RACE_DH_A:         // 20
+        case RACE_DRACTHYR:     // 27
             fallbackRace = RACE_DRAENEI;
             break;
         // Horde custom races -> fallback to Orc(2) totems
@@ -1869,6 +1870,7 @@ uint32 ObjectMgr::GetModelForTotem(SummonSlot totemSlot, Races race) const
         case RACE_EREDAR:       // 17
         case RACE_FOREST_TROLL: // 18
         case RACE_DH_H:         // 21
+        case RACE_NAGA:         // 25
             fallbackRace = RACE_ORC;
             break;
         default:
@@ -1946,21 +1948,54 @@ uint32 ObjectMgr::GetModelForShapeshift(ShapeshiftForm form, Player* player) con
     // getGender() tracks the active display model; real gender lives in PLAYER_BYTES_3
     uint8 gender = player->GetByteValue(PLAYER_BYTES_3, PLAYER_BYTES_3_OFFSET_GENDER);
 
-    auto itr = _playerShapeshiftModel.find(std::make_tuple(form, player->getRace(), customizationID, gender));
-    if (itr != _playerShapeshiftModel.end())
-        return itr->second; // Explicit combination
+    if (player->getRace() == RACE_NAGA && form == FORM_METAMORPHOSIS)
+        return 25277;
 
-    itr = _playerShapeshiftModel.find(std::make_tuple(form, player->getRace(), customizationID, GENDER_NONE));
-    if (itr != _playerShapeshiftModel.end())
-        return itr->second; // Combination applied to both genders
+    auto findModel = [&](uint8 race) -> uint32
+    {
+        auto itr = _playerShapeshiftModel.find(std::make_tuple(form, race, customizationID, gender));
+        if (itr != _playerShapeshiftModel.end())
+            return itr->second; // Explicit combination
 
-    itr = _playerShapeshiftModel.find(std::make_tuple(form, player->getRace(), 255, gender));
-    if (itr != _playerShapeshiftModel.end())
-        return itr->second; // Default gender-dependent model
+        itr = _playerShapeshiftModel.find(std::make_tuple(form, race, customizationID, GENDER_NONE));
+        if (itr != _playerShapeshiftModel.end())
+            return itr->second; // Combination applied to both genders
 
-    itr = _playerShapeshiftModel.find(std::make_tuple(form, player->getRace(), 255, GENDER_NONE));
-    if (itr != _playerShapeshiftModel.end())
-        return itr->second; // Last resort
+        itr = _playerShapeshiftModel.find(std::make_tuple(form, race, 255, gender));
+        if (itr != _playerShapeshiftModel.end())
+            return itr->second; // Default gender-dependent model
+
+        itr = _playerShapeshiftModel.find(std::make_tuple(form, race, 255, GENDER_NONE));
+        if (itr != _playerShapeshiftModel.end())
+            return itr->second; // Last resort
+
+        return 0;
+    };
+
+    if (uint32 model = findModel(player->getRace()))
+        return model;
+
+    uint8 fallbackRace = RACE_NONE;
+    switch (player->getRace())
+    {
+        case RACE_DRACTHYR:
+            fallbackRace = RACE_NIGHTELF;
+            break;
+        case RACE_NAGA:
+            fallbackRace = RACE_TAUREN;
+            break;
+        default:
+            break;
+    }
+
+    if (fallbackRace)
+    {
+        if (uint32 model = findModel(fallbackRace))
+        {
+            LOG_DEBUG("entities.player", "ShapeshiftForm {} with custom RaceID ({}) using fallback RaceID ({}) model.", form, player->getRace(), fallbackRace);
+            return model;
+        }
+    }
 
     LOG_DEBUG("entities.player", "ShapeshiftForm {} with RaceID ({}) have no shapeshift model data defined, using fallback data.", form, player->getRace());
     return 0;
@@ -4545,7 +4580,8 @@ void ObjectMgr::LoadPlayerInfo()
 
                 for (uint32 raceIndex = RACE_HUMAN; raceIndex < sRaceMgr->GetMaxRaces(); ++raceIndex)
                 {
-                    if (raceMask == 0 || ((1 << (raceIndex - 1)) & raceMask))
+                    uint32 raceBit = GetRaceMaskForRace(raceIndex);
+                    if (raceMask == 0 || (raceBit && (raceBit & raceMask)))
                     {
                         for (uint32 classIndex = CLASS_WARRIOR; classIndex < MAX_CLASSES; ++classIndex)
                         {
@@ -4606,7 +4642,8 @@ void ObjectMgr::LoadPlayerInfo()
 
                 for (uint32 raceIndex = RACE_HUMAN; raceIndex < sRaceMgr->GetMaxRaces(); ++raceIndex)
                 {
-                    if (raceMask == 0 || ((1 << (raceIndex - 1)) & raceMask))
+                    uint32 raceBit = GetRaceMaskForRace(raceIndex);
+                    if (raceMask == 0 || (raceBit && (raceBit & raceMask)))
                     {
                         for (uint32 classIndex = CLASS_WARRIOR; classIndex < MAX_CLASSES; ++classIndex)
                         {
@@ -4664,7 +4701,8 @@ void ObjectMgr::LoadPlayerInfo()
 
                 for (uint32 raceIndex = RACE_HUMAN; raceIndex < sRaceMgr->GetMaxRaces(); ++raceIndex)
                 {
-                    if (raceMask == 0 || ((1 << (raceIndex - 1)) & raceMask))
+                    uint32 raceBit = GetRaceMaskForRace(raceIndex);
+                    if (raceMask == 0 || (raceBit && (raceBit & raceMask)))
                     {
                         for (uint32 classIndex = CLASS_WARRIOR; classIndex < MAX_CLASSES; ++classIndex)
                         {

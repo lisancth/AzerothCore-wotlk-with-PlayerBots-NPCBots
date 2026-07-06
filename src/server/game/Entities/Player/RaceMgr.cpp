@@ -16,6 +16,7 @@
  */
 
 #include "RaceMgr.h"
+#include "DBCStores.h"
 #include "AccountMgr.h"
 #include "DatabaseEnv.h"
 #include "ObjectMgr.h"
@@ -44,6 +45,14 @@ RaceMgr* RaceMgr::instance()
     return &instance;
 }
 
+bool RaceMgr::IsRacePlayable(uint8 race)
+{
+    if (ChrRacesEntry const* raceEntry = sChrRacesStore.LookupEntry(race))
+        return !(raceEntry->Flags & CHRRACES_FLAGS_NOT_PLAYABLE);
+
+    return false;
+}
+
 void RaceMgr::LoadRaces()
 {
     SetMaxRaces(0 + 1);
@@ -65,7 +74,10 @@ void RaceMgr::LoadRaces()
         if (GetMaxRaces() <= raceId)
             SetMaxRaces(raceId + 1);
 
-        uint32 raceBit = (1 << (raceId - 1));
+        uint32 raceBit = GetRaceMaskForRace(raceId);
+        if (!raceBit)
+            continue;
+
 
         _playableRaceMask |= raceBit;
 

@@ -80,6 +80,20 @@
 //end npcbot
 #endif
 
+namespace
+{
+bool IsItemAllowedForPlayerClassAndRace(Player const* player, ItemTemplate const* proto)
+{
+    if ((proto->AllowableClass & player->getClassMask()) == 0)
+        return false;
+
+    if (proto->AllowableRace & player->getRaceMask())
+        return true;
+
+    return false;
+}
+}
+
 /*********************************************************/
 /***                    STORAGE SYSTEM                 ***/
 /*********************************************************/
@@ -87,6 +101,8 @@
 void Player::SetVirtualItemSlot(uint8 i, Item* item)
 {
     ASSERT(i < 3);
+    Unit::SetVirtualItem(i, item ? item->GetEntry() : 0);
+
     if (i < 2 && item)
     {
         if (!item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT))
@@ -2396,7 +2412,7 @@ InventoryResult Player::CanUseItem(ItemTemplate const* proto) const
         return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
     }
 
-    if ((proto->AllowableClass & getClassMask()) == 0 || (proto->AllowableRace & getRaceMask()) == 0)
+    if (!IsItemAllowedForPlayerClassAndRace(this, proto))
     {
         return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
     }
@@ -2462,7 +2478,7 @@ InventoryResult Player::CanRollForItemInLFG(ItemTemplate const* proto, WorldObje
         SKILL_FISHING
     }; //Copy from function Item::GetSkill()
 
-    if ((proto->AllowableClass & getClassMask()) == 0 || (proto->AllowableRace & getRaceMask()) == 0)
+    if (!IsItemAllowedForPlayerClassAndRace(this, proto))
         return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
 
     if (proto->RequiredSpell != 0 && !HasSpell(proto->RequiredSpell))

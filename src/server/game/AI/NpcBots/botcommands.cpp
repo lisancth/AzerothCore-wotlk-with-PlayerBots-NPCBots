@@ -3767,7 +3767,7 @@ public:
         if (!normalizePlayerName(namestr))
             return ret_err_invalid_arg(handler, "name");
 
-        if (race && !((1u << (*race - 1)) & sRaceMgr->GetPlayableRaceMask()))
+        if (race && !(GetRaceMaskForRace(*race) & sRaceMgr->GetPlayableRaceMask()))
             return ret_err_invalid_arg(handler, "race", race);
 
         if (can_change_appearance && *gender != GENDER_MALE && *gender != GENDER_FEMALE)

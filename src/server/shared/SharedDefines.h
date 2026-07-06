@@ -89,11 +89,26 @@ enum Races
     RACE_LIGHTFORGED        = 19, // TITLE 光铸德莱尼  Lightforged
     RACE_DH_A               = 20, // TITLE 恶魔猎手|cff0070de|r   联盟  Deme
     RACE_DH_H               = 21, // TITLE 恶魔猎手|cffc41f3b|r   部落
+    RACE_NAGA               = 25, // TITLE 娜迦 Naga
+    RACE_DRACTHYR           = 27, // TITLE 龙希尔 Dracthyr
     RACE_TUSKARR            = 28
 };
 
 // max+1 for player race
-#define MAX_RACES         22
+#define MAX_RACES         36
+
+// 3.3.5-era race masks are uint32. Only race IDs 1..32 can be represented
+// safely as 1 << (race - 1). Dracthyr now uses Race27, so it follows the
+// normal mask path; the helper still protects any future high custom race.
+inline constexpr bool IsRaceMaskable(uint8 race)
+{
+    return race > RACE_NONE && race <= 32;
+}
+
+inline constexpr uint32 GetRaceMaskForRace(uint8 race)
+{
+    return IsRaceMaskable(race) ? (uint32(1) << (race - 1)) : 0;
+}
 
 #define RACEMASK_ALL_PLAYABLE \
     ((1<<(RACE_HUMAN-1))   |(1<<(RACE_ORC-1))          |(1<<(RACE_DWARF-1))   | \
@@ -102,14 +117,14 @@ enum Races
      (1<<(RACE_BLOODELF-1))|(1<<(RACE_DRAENEI-1))      |(1<<(RACE_VOIDELF-1))| \
      (1<<(RACE_VULPERA-1)) |(1<<(RACE_HIGH_ELF-1))     |(1<<(RACE_PANDAREN-1))| \
      (1<<(RACE_WOLGEN-1))  |(1<<(RACE_EREDAR-1))      |(1<<(RACE_FOREST_TROLL-1))| \
-     (1<<(RACE_LIGHTFORGED-1))  |(1<<(RACE_DH_A-1))|(1<<(RACE_DH_H-1)))
+     (1<<(RACE_LIGHTFORGED-1))  |(1<<(RACE_DH_A-1))|(1<<(RACE_DH_H-1))|(1<<(RACE_NAGA-1))|(1<<(RACE_DRACTHYR-1)))
 
 // Added (1<<(RACE_HIGH_ELF-1)) to RACEMASK_ALLIANCE
 #define RACEMASK_ALLIANCE \
     ((1<<(RACE_HUMAN-1)) | (1<<(RACE_DWARF-1))  | (1<<(RACE_NIGHTELF-1)) | \
      (1<<(RACE_GNOME-1)) | (1<<(RACE_DRAENEI-1))| (1<<(RACE_VOIDELF-1))  | \
      (1<<(RACE_WOLGEN-1))| (1<<(RACE_LIGHTFORGED-1)) | (1<<(RACE_DH_A-1)) | \
-     (1<<(RACE_HIGH_ELF-1)))
+     (1<<(RACE_HIGH_ELF-1)) | (1<<(RACE_DRACTHYR-1)))
 
 #define RACEMASK_HORDE RACEMASK_ALL_PLAYABLE & ~RACEMASK_ALLIANCE
 

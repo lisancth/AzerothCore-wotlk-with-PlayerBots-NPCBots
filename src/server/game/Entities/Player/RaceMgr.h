@@ -38,6 +38,7 @@ public:
     static void LoadRaces();
     static uint8 GetMaxRaces() { return _maxRaces; }
     static void SetMaxRaces(uint8 max) { _maxRaces = max; }
+    static bool IsRacePlayable(uint8 race);
     static uint32 GetPlayableRaceMask() { return _playableRaceMask; }
     static uint32 GetAllianceRaceMask() { return _allianceRaceMask; }
     static uint32 GetHordeRaceMask() { return _hordeRaceMask; }

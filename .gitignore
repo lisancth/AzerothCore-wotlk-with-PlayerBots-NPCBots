@@ -155,3 +155,4 @@ AZtwobotBuild/
 .agents/
 skills/
 AZtwobotBuildrebornwow/
+!/modules/GObject-Editor-Tool

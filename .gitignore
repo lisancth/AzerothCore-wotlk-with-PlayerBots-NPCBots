@@ -138,6 +138,7 @@ compile_commands.json
 !/modules/mod-random-enchants
 !/modules/mod-solocraft
 !/modules/mod-solo-lfg
+!/modules/mod-gobject-editor
 
 # Ignore Release directory
 Release/

@@ -32,6 +32,28 @@
 #include "SpellMgr.h"
 #include "WorldSession.h"
 
+namespace
+{
+bool IsCustomRaceCompatibleQuestRace(Player const* player, uint32 reqraces)
+{
+    uint32 compatibleRaceMask = 0;
+
+    switch (player->getRace())
+    {
+        case RACE_DRACTHYR:
+            compatibleRaceMask = RACEMASK_ALLIANCE;
+            break;
+        case RACE_NAGA:
+            compatibleRaceMask = RACEMASK_HORDE;
+            break;
+        default:
+            return false;
+    }
+
+    return (reqraces & compatibleRaceMask) != 0;
+}
+}
+
 /*********************************************************/
 /***                    QUEST SYSTEM                   ***/
 /*********************************************************/
@@ -1108,6 +1130,9 @@ bool Player::SatisfyQuestRace(Quest const* qInfo, bool msg) const
         return true;
     if ((reqraces & getRaceMask()) == 0)
     {
+        if (IsCustomRaceCompatibleQuestRace(this, reqraces))
+            return true;
+
         if (msg)
             SendCanTakeQuestResponse(INVALIDREASON_QUEST_FAILED_WRONG_RACE);
         return false;
